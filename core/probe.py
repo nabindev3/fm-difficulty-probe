@@ -111,9 +111,12 @@ def run_probe_ladder(
             penalty="l1", solver="liblinear",
             class_weight="balanced", max_iter=2000,
         )
-        gs = GridSearchCV(base, {"C": c_grid}, scoring="roc_auc", cv=list(cv_splits))
+        gs = GridSearchCV(base, {"C": c_grid}, scoring="roc_auc",
+                          cv=list(cv_splits), n_jobs=-1)
         # cv_splits is a list (materialized), so re-iterating per rung is fine.
-        gs.fit(X_tr, y_train)
+        from joblib import parallel_backend
+        with parallel_backend("threading"):
+            gs.fit(X_tr, y_train)
         p = gs.predict_proba(X_te)[:, 1]
         preds[name] = p
         point_auroc[name] = (

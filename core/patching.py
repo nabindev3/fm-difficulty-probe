@@ -99,10 +99,16 @@ def make_recon_hook(
     ablated_features : latents to zero before decoding (None = pure recon).
     positions  : "all"   -> patch every position in the slice returned by index_fn
                             (or the whole sequence if index_fn is None);
+                 "last"  -> patch ONLY the final position [s-1, s] (the analogue
+                            of the LLM "boundary" token; coverage = 1 position);
                  "single"-> patch one position; index_fn must return (idx, idx+1).
     index_fn   : zero-arg callable returning (start, end) token positions to patch,
                  read at hook-call time (lets the adapter set per-item boundaries).
                  For "all" with index_fn=None the entire sequence is patched.
+
+    The `positions` knob is the cross-modal replication lever: "all" vs "last"
+    tests whether feature effects are detectable only under broad intervention
+    coverage (the LLM's coverage-not-fidelity finding).
     """
     W_enc = sae.W_enc.detach()
     b_enc = sae.b_enc.detach()
@@ -117,7 +123,9 @@ def make_recon_hook(
         dtype = hidden.dtype
         b, s, d = hidden.shape
 
-        if index_fn is not None:
+        if positions == "last":
+            start, end = s - 1, s
+        elif index_fn is not None:
             start, end = index_fn()
             start = max(0, start)
             end = min(end, s)

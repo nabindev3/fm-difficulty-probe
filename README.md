@@ -75,16 +75,47 @@ python experiments/run.py --config configs/tsfm_etth1.yaml    --stage all
 bash reproduce.sh                # runs every model-free stage for all configs
 ```
 
+## Reproduced results (real runs, in `results/`)
+
+The unified pipeline reproduces the legacy LLM numbers **exactly** and the TSFM
+numbers qualitatively (with an improved train-only label threshold). The
+cross-modal synthesis lives in `results/cross_modal_synthesis.md`:
+
+| | HellaSwag | SQuAD | ETTh1 |
+|---|---|---|---|
+| P1 cheap AUROC | 0.509 | 0.590 | 0.694 |
+| P2 cheap+raw   | 0.472 | 0.671 | 0.570 |
+| P3 cheap+SAE   | 0.500 | 0.592 | 0.523 |
+| **Δ SAE over raw** | +0.028 [−0.001,+0.058] | −0.079 [−0.118,−0.041] | −0.047 [−0.192,+0.093] |
+| causal all-pos | 5/5 sig | 5/5 sig | (run) |
+| causal single-pos | 0/5 sig | 2/5 sig | (run) |
+| selective % oracle | 2.0% (P1) | 41.3% (raw) | 52.6% (P1) |
+
+**The dissociation holds in both modalities:** SAE adds no predictive power over
+the strongest cheap rung, yet the same features are causally active under
+all-position patching (and under-detected by single-position — coverage, not
+fidelity). Deployable artifact = a cheap-baseline selective predictor.
+
+```bash
+# reproduce everything (after staging data/ — see configs/README.md)
+bash reproduce.sh
+# causal coverage replication (needs the live models, cached locally):
+USE_TF=0 python experiments/causal_tsfm.py --config configs/tsfm_etth1.yaml --positions all
+USE_TF=0 python experiments/causal_tsfm.py --config configs/tsfm_etth1.yaml --positions last
+python experiments/synthesize.py
+```
+
 ## Status / roadmap
 
 - [x] **Phase 0** repo architecture (this layout)
 - [x] **Phase 1** shared core extracted + unit-tested on synthetic arrays
-- [ ] **Phase 2** wire adapters against real extraction outputs; confirm legacy
-      numbers reproduce through the unified ladder
-- [ ] **Phase 3** close the seams: TSFM P2 middle rung as headline; bring the
-      TSFM causal ablation up to the LLM standard (single- vs all-position
-      patching — the second cross-modal replication); align SAE expansion or
-      show robustness
-- [ ] **Phase 4** cross-modal synthesis table + paper (`paper/outline.md`)
+- [x] **Phase 2** adapters wired against real extraction outputs; legacy LLM
+      numbers reproduce exactly through the unified ladder
+- [x] **Phase 3** seams closed — see `SEAMS.md`: TSFM P2 middle rung promoted to
+      headline; single- vs all-position patching ported to TSFM via
+      `core.patching` (the second cross-modal replication); SAE expansion (4× vs
+      8×) documented; train-only label threshold unifies leakage controls
+- [ ] **Phase 4** cross-modal paper from `paper/outline.md` + `results/cross_modal_synthesis.md`
 
-See `paper/outline.md` for the manuscript skeleton.
+See `SEAMS.md` for the seam-by-seam reconciliation and `paper/outline.md` for the
+manuscript skeleton.

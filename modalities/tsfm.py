@@ -161,7 +161,9 @@ class TSFMModality:
     def cascade_errors(self):
         small = pd.read_parquet(self.cfg["cascade"]["cheap_metadata"])
         base = pd.read_parquet(self.cfg["cascade"]["expensive_metadata"])
-        col = "crps_norm" if "crps_norm" in small.columns else "crps_raw"
+        # Use the column present in BOTH (base extraction only stores crps_raw),
+        # so cheap and expensive errors are on the same scale.
+        col = "crps_raw"
         small = small[["window_id", col]].rename(columns={col: "err_cheap"})
         base = base[["window_id", col]].rename(columns={col: "err_exp"})
         df = small.merge(base, on="window_id")

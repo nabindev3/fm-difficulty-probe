@@ -53,14 +53,27 @@ a Platt-recalibrated selective predictor on the cheap baseline, capturing
 | Layer choice | residual 12/18 vs encoder 3/5 | frame as "mid + late"; `layers()` exposes both |
 | Causal metric | Δnats vs ΔCRPS | appropriately modality-specific; frame as parallel, recorded in summary |
 
-## Synthesis table (target schema)
+## Synthesis table (REAL reproduced numbers — see `results/cross_modal_synthesis.md`)
 
 ```
-                         | LLM/HellaSwag | LLM/SQuAD | TSFM/ETTh1
-Δ(P3−P2) AUROC  [95% CI] |      ...      |    ...    |    ...
-perm-test p (SAE>Raw)    |      ...      |    ...    |    ...
-causal Δ (all-position)  |   Δnats ...   |  Δnats ...|  ΔCRPS ...
-  significant features    |    4–5 / 5    |    ...    |    ...
-selective: % oracle AURC |     ~41%      |    ...    |   ~30%
-cascade: Pareto-dom pts   |      ...      |    ...    |    ...
+                          | LLM/HellaSwag        | LLM/SQuAD            | TSFM/ETTh1
+n test                    | 1499                 | 1500                | 167
+P1 cheap AUROC            | 0.509                | 0.590               | 0.694
+P2 cheap+raw AUROC        | 0.472                | 0.671               | 0.570
+P3 cheap+SAE AUROC        | 0.500                | 0.592               | 0.523
+Δ(P3−P2) AUROC [95% CI]   | +0.028[-0.001,+0.058]| -0.079[-0.118,-0.041]| -0.047[-0.192,+0.093]
+Δ(P3−P1) AUROC [95% CI]   | -0.009[-0.039,+0.020]| +0.002[-0.044,+0.047]| -0.171[-0.291,-0.047]
+causal sig (all-position) | 5/5                  | 5/5                 | (see results/)
+causal sig (single-pos)   | 0/5                  | 2/5                 | (see results/)
+selective: % oracle AURC  | 2.0% (P1)            | 41.3% (raw)         | 52.6% (P1)
+cascade: Pareto-dom pts   | 1 (P1)               | 31 (SAE), 24 (P1)   | 7 (P1), 3 (SAE)
 ```
+
+Notes:
+- LLM rows reproduce the legacy reports **exactly**; TSFM uses a train-only label
+  threshold (leakage fix), which shifts its AUROCs slightly from the legacy paper.
+- HellaSwag is the weak modality (near-chance probes); SQuAD and ETTh1 carry the
+  predictive-null + deployable-positive story.
+- The causal coverage contrast (all 5/5 vs single 0–2/5) is the cross-modal
+  replication; metric held continuous (Δnats / ΔCRPS) so coverage is not confounded
+  with the binary/continuous choice.
