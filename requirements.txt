@@ -1,0 +1,17 @@
+# Shared interpreter lock for BOTH modalities (Phase 0 "done when": one env).
+# Pin before submission; ranges here are the union of the two legacy repos.
+torch>=2.4.0
+transformers>=4.40.0      # LLM modality (Pythia)
+chronos-forecasting       # TSFM modality (Chronos-T5)
+datasets>=2.19.0
+safetensors>=0.4.0
+scikit-learn>=1.4.0
+pandas>=2.0.0
+numpy>=1.24.0
+scipy>=1.11.0
+statsmodels>=0.14.0       # ADF p-value + autocorrelation for TS cheap stats
+matplotlib>=3.8.0
+pyarrow>=14.0.0
+tqdm>=4.66.0
+PyYAML>=6.0
+pytest>=8.0               # core unit tests on synthetic arrays

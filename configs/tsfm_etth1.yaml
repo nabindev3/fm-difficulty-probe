@@ -1,0 +1,37 @@
+# TSFM modality — Chronos-T5-small on ETTh1 forecast windows.
+# Paths point at the legacy tsfm-sae-routing extraction outputs.
+modality: tsfm
+experiment: etth1
+seed: 42
+n_boot: 2000
+k: 32
+layer: mid
+hard_quantile: 0.75        # top-quartile normalized CRPS = "hard"
+context_length: 512
+
+series_csv: https://raw.githubusercontent.com/zhouhaoyi/ETDataset/main/ETT-small/ETTh1.csv
+target_col: OT
+
+metadata: data/tsfm/etth1/activations/ETTh1_metadata.parquet
+
+activations:
+  mid:  data/tsfm/etth1/activations/ETTh1_activations.safetensors
+  late: data/tsfm/etth1/activations_late/ETTh1_activations.safetensors
+
+sae_ckpt:
+  mid:  data/tsfm/etth1/sae/checkpoints/sae_topk_32.pt
+  late: data/tsfm/etth1/sae/checkpoints_late/sae_topk_32.pt
+
+# Encoder block indices the SAEs were trained on.
+layer_modules:
+  mid: 3
+  late: 5
+
+cascade:
+  cheap_metadata:     data/tsfm/etth1/activations/ETTh1_metadata.parquet
+  expensive_metadata: data/tsfm/etth1/activations_base/ETTh1_metadata.parquet
+  cost_cheap: 1.0       # Chronos-T5-small
+  cost_expensive: 4.0   # Chronos-T5-base
+  score_cols: [P3_cheap_sae, P1_cheap]
+
+out_dir: results/tsfm_etth1

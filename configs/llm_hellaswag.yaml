@@ -1,0 +1,33 @@
+# LLM modality — Pythia-410M on HellaSwag (multiple-choice binary correctness).
+# Paths point at the legacy llm-sae-difficulty extraction outputs; copy them in
+# (or symlink) under data/llm/ before running.
+modality: llm
+experiment: hellaswag
+seed: 42
+n_boot: 2000
+k: 32                      # TopK SAE sparsity
+layer: mid                 # which rung layer to probe ("mid" = residual block 12)
+
+metadata: data/llm/hellaswag/activations/hellaswag_metadata.parquet
+
+activations:
+  mid:  data/llm/hellaswag/activations/hellaswag_activations.safetensors
+  late: data/llm/hellaswag/activations_late/hellaswag_activations.safetensors
+
+sae_ckpt:
+  mid:  data/llm/hellaswag/sae/checkpoints_hellaswag_l12/sae_topk_32.pt
+  late: data/llm/hellaswag/sae/checkpoints_late/sae_topk_32.pt
+
+# 0-based residual block indices the SAEs were trained on (block 11 -> Layer 12).
+layer_modules:
+  mid: 11
+  late: 17
+
+cascade:
+  cheap_metadata:     data/llm/hellaswag/activations/hellaswag_metadata.parquet
+  expensive_metadata: data/llm/hellaswag/activations_base/hellaswag_metadata.parquet
+  cost_cheap: 1.0       # Pythia-410M
+  cost_expensive: 5.0   # Pythia-2.8B
+  score_cols: [P3_cheap_sae, P1_cheap]
+
+out_dir: results/llm_hellaswag

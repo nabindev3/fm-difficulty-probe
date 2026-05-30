@@ -1,0 +1,30 @@
+# LLM modality — Pythia-410M on SQuAD (continuous generative gold-target perplexity).
+modality: llm
+experiment: squad
+seed: 42
+n_boot: 2000
+k: 32
+layer: mid
+
+metadata: data/llm/squad/activations/squad_metadata.parquet
+
+activations:
+  mid:  data/llm/squad/activations/squad_activations.safetensors
+  late: data/llm/squad/activations_late/squad_activations.safetensors
+
+sae_ckpt:
+  mid:  data/llm/squad/sae/checkpoints/sae_topk_32.pt
+  late: data/llm/squad/sae/checkpoints_late_squad/sae_topk_32.pt
+
+layer_modules:
+  mid: 11
+  late: 17
+
+cascade:
+  cheap_metadata:     data/llm/squad/activations/squad_metadata.parquet
+  expensive_metadata: data/llm/squad/activations_base/squad_metadata.parquet
+  cost_cheap: 1.0
+  cost_expensive: 5.0
+  score_cols: [P3_cheap_sae, P1_cheap]
+
+out_dir: results/llm_squad

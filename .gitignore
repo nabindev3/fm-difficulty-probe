@@ -1,0 +1,20 @@
+# Data & artifacts (staged from legacy extraction; large, not version-controlled)
+data/
+results/
+*.safetensors
+*.parquet
+*.pt
+*.npz
+
+# Legacy repos imported for reference; delete before submission
+_legacy/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+.pytest_cache/
+
+# OS
+.DS_Store
