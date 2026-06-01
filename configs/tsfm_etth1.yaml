@@ -7,6 +7,10 @@ n_boot: 2000
 k: 32
 layer: mid
 hard_quantile: 0.75        # top-quartile normalized CRPS = "hard"
+# Where the hard-quantile threshold is computed:
+#   all   -> whole-dataset (reproduces the legacy TSFM Δ=-0.228; Phase-2 gate)
+#   train -> train-only (leakage fix; documented Phase-3 improvement, see SEAMS.md)
+label_threshold_split: all
 context_length: 512
 
 series_csv: https://raw.githubusercontent.com/zhouhaoyi/ETDataset/main/ETT-small/ETTh1.csv

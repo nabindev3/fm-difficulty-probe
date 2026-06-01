@@ -57,6 +57,13 @@ class Modality(Protocol):
         TimeSeriesSplit for the TSFM. Returned materialized (list of index pairs)."""
         ...
 
+    def selective_error(self, test_mask: np.ndarray) -> np.ndarray:
+        """Per-test-item error on the modality's NATURAL scale, for risk-coverage:
+        binary 0/1 correctness (LLM) | continuous CRPS (TSFM). Keeping each
+        modality on its own error scale is what makes the '% of oracle AURC
+        captured' numbers comparable to each legacy report."""
+        ...
+
     # --- causal side -------------------------------------------------------- #
     def layers(self) -> dict[str, object]:
         """Named layer handles, at minimum {'mid': ..., 'late': ...}."""

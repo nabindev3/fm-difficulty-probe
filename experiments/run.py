@@ -74,7 +74,12 @@ def stage_probe(m, cfg, out_dir) -> tuple[dict, dict]:
 def stage_selective(m, cfg, out_dir, preds=None):
     y = m.difficulty_labels()
     _, test_mask = m.split_masks()
-    errors = y[test_mask].astype(float)
+    # Use the modality's natural error scale (binary correctness | continuous CRPS)
+    # so "% of oracle AURC captured" is comparable across modalities.
+    if hasattr(m, "selective_error"):
+        errors = np.asarray(m.selective_error(test_mask), dtype=float)
+    else:
+        errors = y[test_mask].astype(float)
     if preds is None:
         preds = _load_preds(out_dir)
     score_dict = {k: v for k, v in preds.items() if k != "y_test"}
@@ -136,10 +141,15 @@ def main():
     ap.add_argument("--config", required=True)
     ap.add_argument("--stage", default="all",
                     choices=["probe", "selective", "calibrate", "cascade", "all"])
+    ap.add_argument("--layer", default=None, choices=["mid", "late"],
+                    help="Override the cfg 'layer' (mid|late) for this run.")
     args = ap.parse_args()
 
     with open(args.config) as f:
         cfg = yaml.safe_load(f)
+    if args.layer:
+        cfg["layer"] = args.layer
+        cfg["out_dir"] = cfg.get("out_dir", "results/run") + f"_{args.layer}"
     out_dir = cfg.get("out_dir", f"results/{os.path.splitext(os.path.basename(args.config))[0]}")
     m = build_modality(cfg)
 

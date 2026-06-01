@@ -152,6 +152,10 @@ class LLMModality:
     def difficulty_labels(self) -> np.ndarray:
         return self.meta["difficulty"].values.astype(int)
 
+    def selective_error(self, test_mask: np.ndarray) -> np.ndarray:
+        # Natural error scale = binary 0/1 correctness.
+        return self.meta["difficulty"].values.astype(float)[test_mask]
+
     def split_masks(self):
         return ((self.meta["split"] == "train").values,
                 (self.meta["split"] == "test").values)

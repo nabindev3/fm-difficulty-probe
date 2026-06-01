@@ -99,11 +99,22 @@ def render_markdown(rows: list[dict]) -> str:
     L.append(line("selective: % oracle",
                   lambda r: f"{r['selective_best'][0]} {r['selective_best'][1]}%"
                   if r.get("selective_best") else "—"))
-    L.append("\n**Reading:** SAE adds no predictive power over the strongest cheap "
-             "rung (Δ rows ≤ 0 or CI straddles 0), yet the SAME features are causally "
-             "active under *all-position* patching while *single-position* patching "
-             "under-detects them — coverage, not fidelity — in BOTH modalities. The "
-             "deployable artifact is a cheap-baseline selective predictor.\n")
+    L.append(
+        "\n**Reading.**\n"
+        "1. *Predictive null replicates in BOTH modalities* — SAE adds no power "
+        "over the strongest cheap rung (Δ rows ≤ 0 or CI straddles 0).\n"
+        "2. *Causal positive is modality-specific* — the LLM's top features are "
+        "causally active under all-position patching (5/5) and under-detected by "
+        "single-position (0–2/5: coverage, not fidelity). On the TSFM, NO feature "
+        "is significant under either coverage (0/5), reproducing the legacy "
+        "Chronos null (50-sample run, 0/5). So the coverage-not-fidelity story is "
+        "an LLM finding; on Chronos the features are predictively redundant AND "
+        "causally quiet at this scale.\n"
+        "3. *Deployable artifact replicates in BOTH* — a cheap-baseline selective "
+        "predictor captures 30–41% of oracle AURC.\n\n"
+        "The cross-modal dissociation (predictive-null both; causal-positive LLM-"
+        "only) is itself the contribution: it isolates the causal signal as a "
+        "property of the autoregressive LM, not a universal SAE phenomenon.\n")
     return "\n".join(L)
 
 

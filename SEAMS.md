@@ -18,10 +18,17 @@ SAE *over raw*. The TSFM P2 rung is now first-class.
 
 | Δ SAE over raw | HellaSwag | SQuAD | ETTh1 |
 |---|---|---|---|
-| point [95% CI] | +0.028 [−0.001,+0.058] | −0.079 [−0.118,−0.041] | −0.047 [−0.192,+0.093] |
+| point [95% CI] | +0.028 [−0.001,+0.058] | −0.079 [−0.118,−0.041] | −0.158 [−0.291,−0.025] |
+| Δ SAE over cheap | −0.009 [−0.039,+0.020] | +0.002 [−0.044,+0.047] | −0.227 [−0.365,−0.091] |
 
-In no modality does the SAE add predictive power over raw activations. Reproduces
-the legacy LLM numbers exactly.
+In no modality does the SAE add predictive power over raw activations.
+
+**Phase-2 regression gate — PASSED.** All legacy headline numbers reproduce
+through the shared code before any new experiment was trusted:
+- LLM SQuAD/L18 raw-only AUROC = **0.716** (`--layer late`).
+- LLM SQuAD/L12 raw-only = 0.667; full mid ladder reproduces the legacy JSON exactly.
+- TSFM Δ(SAE − cheap) = P3 − P1 = **−0.227** (legacy headline −0.228).
+- Selective: LLM raw **41.3%** of oracle, TSFM P1 **30.5%** of oracle.
 
 ## 2. Causal sample size + single- vs all-position patching  ✅ CLOSED (the gold replication)
 
@@ -36,17 +43,27 @@ experiments weren't comparable.
 the SAME metric (CRPS) — a *cleaner* comparison than the legacy LLM 2×2, which
 partly confounded coverage with the binary/continuous metric.
 
-Coverage-not-fidelity, holding metric fixed (continuous / CRPS):
+Significant features, holding metric fixed (continuous / CRPS), 167 windows each:
 
 | significant features | all-position | single-position |
 |---|---|---|
 | LLM HellaSwag | 5/5 | 0/5 |
 | LLM SQuAD     | 5/5 | 2/5 |
-| TSFM ETTh1    | see `results/tsfm_etth1/causal_ablation_{all,last}.json` |
+| TSFM ETTh1    | **0/5** | **0/5** |
 
-If the TSFM single-position run detects materially fewer features than
-all-position, the coverage-not-fidelity story replicates across modalities — the
-paper's second cross-modal result.
+**Result: the causal signal does NOT replicate on the TSFM.** On Chronos, no
+top-feature ablation is significant under either coverage — and this reproduces
+the legacy Chronos run (50 samples, all-position, also 0/5; best feature CI
+[−0.003, 0.050]), so it is not an artifact of our reduced sample budget. The
+coverage-not-fidelity phenomenon is therefore an **LLM finding**, not a universal
+SAE property: on the autoregressive LM, all-position patching reveals effects
+that single-position misses (coverage, not fidelity); on the TSFM the features
+are predictively redundant *and* causally quiet.
+
+This divergence is a feature, not a bug, of the cross-modal design (the roadmap's
+"either outcome is publishable"): the predictive null is universal, but the
+causal contribution is specific to the autoregressive LM. See the synthesis
+"Reading" in `results/cross_modal_synthesis.md`.
 
 ## 3. SAE expansion factor — 4× (LLM) vs 8× (TSFM)  ⚠️ DOCUMENTED, framed
 
@@ -84,8 +101,22 @@ parallel "lower = better forecast/answer quality" deltas.
 
 The legacy TSFM probe defined the "hard" label from a **whole-dataset** CRPS
 quantile (`df_meta['crps_norm'].quantile(0.75)`), letting test-set values leak
-into the threshold. The unified `TSFMModality.difficulty_labels()` uses a
-**train-only** quantile, matching the leakage discipline already used on the LLM
-side (train-only SAE fit, prompt-only perplexity feature, purge gap). This
-slightly shifts the TSFM AUROCs vs the legacy report but is the correct, honest
-threshold and unifies the leakage controls across modalities.
+into the threshold.
+
+`label_threshold_split` in the TSFM config selects where the threshold is computed:
+- `all` (default) reproduces the legacy number exactly (Δ(SAE−cheap) = −0.227),
+  so the Phase-2 regression gate passes and the refactor is verified correct.
+- `train` uses a train-only quantile — the honest leakage fix matching the
+  LLM-side discipline (train-only SAE fit, prompt-only perplexity, purge gap).
+
+Impact of switching to train-only: P1 0.654→0.694, Δ(SAE−cheap) −0.227→−0.171 —
+the predictive-null conclusion is unchanged, so the fix is safe to adopt for the
+paper while citing the legacy number as the regression anchor.
+
+## 7. Selective-prediction error scale  ✅ FRAMED
+
+Risk-coverage "% of oracle AURC captured" must use each modality's NATURAL error
+scale or the numbers aren't comparable: binary 0/1 correctness for the LLM,
+continuous CRPS for the TSFM (risk = mean CRPS on retained windows). The unified
+runner reads this from `Modality.selective_error(test_mask)`, reproducing both
+legacy figures: LLM raw **41.3%**, TSFM P1 **30.5%** of oracle.

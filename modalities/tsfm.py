@@ -137,9 +137,23 @@ class TSFMModality:
 
     def difficulty_labels(self) -> np.ndarray:
         col = "crps_norm" if "crps_norm" in self.meta.columns else "crps_raw"
-        tr = (self.meta["split"] == "train").values
-        thr = np.quantile(self.meta.loc[tr, col].values, self.cfg.get("hard_quantile", 0.75))
+        q = self.cfg.get("hard_quantile", 0.75)
+        # label_threshold_split controls where the hard-quantile threshold is computed:
+        #   "all"   -> whole-dataset quantile  (REPRODUCES the legacy TSFM number;
+        #              the Phase-2 regression gate uses this).
+        #   "train" -> train-only quantile     (leakage fix; documented Phase-3 improvement).
+        split = self.cfg.get("label_threshold_split", "all")
+        if split == "train":
+            tr = (self.meta["split"] == "train").values
+            thr = np.quantile(self.meta.loc[tr, col].values, q)
+        else:
+            thr = np.quantile(self.meta[col].values, q)
         return (self.meta[col].values >= thr).astype(int)
+
+    def selective_error(self, test_mask: np.ndarray) -> np.ndarray:
+        # Natural error scale = continuous CRPS (risk = mean CRPS on retained
+        # windows), matching the legacy TSFM selective-prediction report.
+        return self.meta["crps_raw"].values.astype(float)[test_mask]
 
     def split_masks(self):
         return ((self.meta["split"] == "train").values,

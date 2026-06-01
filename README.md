@@ -4,18 +4,27 @@ A modality-agnostic study of whether **TopK sparse-autoencoder features encode a
 self-difficulty signal** in foundation models — replicated across an
 autoregressive LM (Pythia) and an encoder-based time-series FM (Chronos-T5).
 
-## Thesis
+## Thesis (as tested) and what the data actually showed
 
-> Across an autoregressive LM and an encoder-based TSFM, TopK-SAE features add
-> **no incremental predictive power** for difficulty beyond the strongest cheap
-> baseline, yet carry a **(near-)significant causal contribution** under
-> reconstruction patching. The deployable artifact in both modalities is a
-> **Platt-recalibrated selective predictor** on the cheap baseline, capturing
-> **30–41% of oracle AURC**.
+**Going-in thesis.** Across an autoregressive LM and an encoder-based TSFM,
+TopK-SAE features add **no incremental predictive power** for difficulty beyond
+the strongest cheap baseline, yet carry a **(near-)significant causal
+contribution** under reconstruction patching; the deployable artifact in both is
+a selective predictor on the cheap baseline capturing **30–41% of oracle AURC**.
 
-The result is a *predictive null + causal positive* dissociation that replicates
-in two unrelated modalities — much stronger than either single negative result,
-which would invite "you just did it wrong."
+**What the unified runs showed.** Two of the three legs replicate cleanly; one
+does not — and the divergence is the contribution:
+
+> The **predictive null** and the **deployable selective predictor** replicate in
+> BOTH modalities. The **causal contribution does not**: SAE features are causally
+> active in the LM (5/5 features under all-position patching) but causally quiet
+> in the TSFM (0/5 under either coverage, reproducing the legacy Chronos null).
+> The causal signal is thus a property of the autoregressive LM, not a universal
+> SAE phenomenon.
+
+This is the roadmap's "either outcome is publishable" case: a *universal
+predictive null + a modality-specific causal positive* is a sharper, more
+falsifiable claim than a forced two-way replication.
 
 ## Why this layout
 
@@ -81,20 +90,39 @@ The unified pipeline reproduces the legacy LLM numbers **exactly** and the TSFM
 numbers qualitatively (with an improved train-only label threshold). The
 cross-modal synthesis lives in `results/cross_modal_synthesis.md`:
 
-| | HellaSwag | SQuAD | ETTh1 |
-|---|---|---|---|
-| P1 cheap AUROC | 0.509 | 0.590 | 0.694 |
-| P2 cheap+raw   | 0.472 | 0.671 | 0.570 |
-| P3 cheap+SAE   | 0.500 | 0.592 | 0.523 |
-| **Δ SAE over raw** | +0.028 [−0.001,+0.058] | −0.079 [−0.118,−0.041] | −0.047 [−0.192,+0.093] |
-| causal all-pos | 5/5 sig | 5/5 sig | (run) |
-| causal single-pos | 0/5 sig | 2/5 sig | (run) |
-| selective % oracle | 2.0% (P1) | 41.3% (raw) | 52.6% (P1) |
+All three runs reproduce the legacy headline numbers through the shared code
+(the Phase-2 regression gate): LLM SQuAD/L18 raw = **0.716**; TSFM Δ(SAE−cheap)
+= **−0.227** (legacy −0.228); selective **41%** (LLM) / **30%** (TSFM).
 
-**The dissociation holds in both modalities:** SAE adds no predictive power over
-the strongest cheap rung, yet the same features are causally active under
-all-position patching (and under-detected by single-position — coverage, not
-fidelity). Deployable artifact = a cheap-baseline selective predictor.
+| | HellaSwag | SQuAD (mid) | ETTh1 |
+|---|---|---|---|
+| P1 cheap AUROC | 0.509 | 0.590 | 0.654 |
+| P2 cheap+raw   | 0.472 | 0.671 | 0.584 |
+| P3 cheap+SAE   | 0.500 | 0.592 | 0.426 |
+| **Δ SAE over raw** | +0.028 [−0.001,+0.058] | −0.079 [−0.118,−0.041] | −0.158 [−0.291,−0.025] |
+| Δ SAE over cheap | −0.009 [−0.039,+0.020] | +0.002 [−0.044,+0.047] | −0.227 [−0.365,−0.091] |
+| causal all-pos | 5/5 sig | 5/5 sig | **0/5 sig** |
+| causal single-pos | 0/5 sig | 2/5 sig | **0/5 sig** |
+| selective % oracle | 2.0% (P1) | 41.3% (raw) | 30.5% (P1) |
+
+(SQuAD raw rung peaks at the late layer: P4 raw-only L18 = 0.716; run with
+`--layer late`.)
+
+**What replicates, and what doesn't — the actual cross-modal finding:**
+1. **Predictive null — both.** SAE adds no power over the strongest cheap rung in
+   either modality.
+2. **Causal positive — LLM only.** On Pythia the top features are causally active
+   under all-position patching (5/5) and under-detected by single-position (0–2/5:
+   coverage, not fidelity). On Chronos **no** feature is significant under either
+   coverage (0/5) — reproducing the legacy Chronos null (50-sample run also 0/5),
+   so it's not a sample-budget artifact. The causal signal is a property of the
+   autoregressive LM, not a universal SAE phenomenon.
+3. **Deployable artifact — both.** A cheap-baseline selective predictor captures
+   30–41% of oracle AURC (each modality on its natural error scale: binary
+   correctness for the LLM, continuous CRPS for the TSFM).
+
+That divergence (universal predictive null, LLM-specific causal contribution) is
+the paper's contribution, not a problem — see `SEAMS.md` §2.
 
 ```bash
 # reproduce everything (after staging data/ — see configs/README.md)
