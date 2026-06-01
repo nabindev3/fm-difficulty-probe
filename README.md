@@ -139,10 +139,15 @@ python experiments/synthesize.py
 - [x] **Phase 1** shared core extracted + unit-tested on synthetic arrays
 - [x] **Phase 2** adapters wired against real extraction outputs; legacy LLM
       numbers reproduce exactly through the unified ladder
-- [x] **Phase 3** seams closed — see `SEAMS.md`: TSFM P2 middle rung promoted to
-      headline; single- vs all-position patching ported to TSFM via
-      `core.patching` (the second cross-modal replication); SAE expansion (4× vs
-      8×) documented; train-only label threshold unifies leakage controls
+- [x] **Phase 3** seams closed — see `SEAMS.md`:
+      (a) identical three-rung ladder in both modalities at **both** layers (TSFM
+      P2 middle rung promoted to headline; mid + late);
+      (b) single- AND all-position causal results on Chronos via `core.patching`
+      (the coverage experiment — which produced the LLM-vs-TSFM divergence);
+      (c) **expansion-robustness sweep run** (LLM 4×↔8×, TSFM 8×↔4×): null holds
+      at both widths — `results/expansion_robustness.md`.
+      Plus: train-only-threshold leakage fix (opt-in) and natural-scale selective
+      error, unifying leakage controls across modalities.
 - [ ] **Phase 4** cross-modal paper from `paper/outline.md` + `results/cross_modal_synthesis.md`
 
 See `SEAMS.md` for the seam-by-seam reconciliation and `paper/outline.md` for the

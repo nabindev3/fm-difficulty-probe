@@ -143,6 +143,10 @@ def main():
                     choices=["probe", "selective", "calibrate", "cascade", "all"])
     ap.add_argument("--layer", default=None, choices=["mid", "late"],
                     help="Override the cfg 'layer' (mid|late) for this run.")
+    ap.add_argument("--sae_override", default=None,
+                    help="Path to a TopKSAE checkpoint to use instead of the cfg "
+                         "one (for the expansion-robustness sweep).")
+    ap.add_argument("--tag", default=None, help="Suffix for out_dir, to avoid clobbering.")
     args = ap.parse_args()
 
     with open(args.config) as f:
@@ -150,6 +154,11 @@ def main():
     if args.layer:
         cfg["layer"] = args.layer
         cfg["out_dir"] = cfg.get("out_dir", "results/run") + f"_{args.layer}"
+    if args.sae_override:
+        layer = cfg.get("layer", "mid")
+        cfg["sae_ckpt"][layer] = args.sae_override
+    if args.tag:
+        cfg["out_dir"] = cfg.get("out_dir", "results/run") + f"_{args.tag}"
     out_dir = cfg.get("out_dir", f"results/{os.path.splitext(os.path.basename(args.config))[0]}")
     m = build_modality(cfg)
 

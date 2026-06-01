@@ -65,23 +65,30 @@ This divergence is a feature, not a bug, of the cross-modal design (the roadmap'
 causal contribution is specific to the autoregressive LM. See the synthesis
 "Reading" in `results/cross_modal_synthesis.md`.
 
-## 3. SAE expansion factor — 4× (LLM) vs 8× (TSFM)  ⚠️ DOCUMENTED, framed
+## 3. SAE expansion factor — 4× (LLM) vs 8× (TSFM)  ✅ CLOSED (robustness sweep run)
 
 **Reality on disk (not what the roadmap assumed).**
 - LLM: d_model 1024 → d_hidden **4096 = 4×**.
 - TSFM: d_model 512 → d_hidden **4096 = 8×**.
 
-So the expansion factors differ *and* the roadmap had them backwards. Two honest
-options, both supported by the code:
+So the factors differ *and* the roadmap had them backwards (both happen to land at
+d_hidden = 4096 — worth noting in the paper).
 
-- **Align.** `core.sae.TopKSAE(expansion=...)` makes width a one-line config
-  change; retrain both at a common expansion (e.g. 8×) and confirm the predictive
-  null is unchanged.
-- **Robustness.** Report the null at both 4× and 8× and show it doesn't move —
-  arguably stronger, since it demonstrates the result isn't an expansion artifact.
+**Robustness sweep (run, not just documented).** Retrained each modality at the
+*other* expansion (`experiments/train_sae.py`) and re-probed
+(`run.py --sae_override`). The predictive null — SAE adds nothing over raw — holds
+at both widths in both modalities; every Δ(SAE−raw) CI is strictly < 0:
 
-Either way: state the factors explicitly in the paper (both happen to land at
-d_hidden = 4096, which is a convenient coincidence to note).
+| modality | expansion | Δ(SAE−raw) [95% CI] |
+|---|---|---|
+| LLM SQuAD | 4× (native) | −0.079 [−0.118, −0.041] |
+| LLM SQuAD | **8×** (sweep) | −0.058 [−0.097, −0.018] |
+| TSFM mid  | 8× (native) | −0.158 [−0.291, −0.025] |
+| TSFM mid  | **4×** (sweep) | −0.105 [−0.201, −0.009] |
+
+This directly answers the "maybe a bigger SAE would've found signal" objection:
+the *larger* LLM SAE (8×) still fails to beat raw activations. Full numbers in
+`results/expansion_robustness.md`.
 
 ## 4. Layer choice — residual blocks 12/18 vs encoder blocks 3/5  ✅ FRAMED
 
