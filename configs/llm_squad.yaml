@@ -28,3 +28,5 @@ cascade:
   score_cols: [P3_cheap_sae, P1_cheap]
 
 out_dir: results/llm_squad
+
+causal_model: EleutherAI/pythia-410m

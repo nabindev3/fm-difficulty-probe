@@ -39,3 +39,6 @@ cascade:
   score_cols: [P3_cheap_sae, P1_cheap]
 
 out_dir: results/tsfm_etth1
+
+# Live model for the causal ablation
+causal_model: amazon/chronos-t5-small

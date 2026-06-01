@@ -43,7 +43,9 @@ def row_for(run: str, results_dir: str) -> dict:
     sel = _load(os.path.join(base, "selective_prediction.json"))
     casc = _load(os.path.join(base, "cascade_results.json"))
     c_all = _causal_nsig(_load(os.path.join(base, "causal_ablation_all.json")))
-    c_last = _causal_nsig(_load(os.path.join(base, "causal_ablation_last.json")))
+    # single-position result is named "last" (TSFM) or "boundary" (LLM).
+    c_last = _causal_nsig(_load(os.path.join(base, "causal_ablation_last.json")) or
+                          _load(os.path.join(base, "causal_ablation_boundary.json")))
 
     out = {"run": run}
     if probe:
