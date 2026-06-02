@@ -4,6 +4,11 @@ A modality-agnostic study of whether **TopK sparse-autoencoder features encode a
 self-difficulty signal** in foundation models — replicated across an
 autoregressive LM (Pythia) and an encoder-based time-series FM (Chronos-T5).
 
+> This repo merges [`llm-sae-difficulty`](https://github.com/nabindev3/llm-sae-difficulty)
+> (Pythia) and [`tsfm-sae-difficulty`](https://github.com/nabindev3/tsfm-sae-difficulty)
+> (Chronos-T5) into one shared pipeline; see those for per-modality detail and the
+> original workshop reports.
+
 ## Thesis (as tested) and what the data actually showed
 
 **Going-in thesis.** Across an autoregressive LM and an encoder-based TSFM,

@@ -6,8 +6,9 @@
 #   RUN_EXPANSION=1 bash reproduce.sh        # also run the SAE expansion-robustness sweep
 #   FAST=1 bash reproduce.sh                 # skip the heavy causal stages (probe table only)
 #
-# Prereq: the two legacy repos sit beside this one (../llm-sae-difficulty,
-# ../tsfm-sae-routing) with their activations/ + sae/ checkpoints present. We
+# Prereq: the two legacy repos sit beside this one (llm-sae-{difficulty,routing}
+# and tsfm-sae-{difficulty,routing} — either name works) with their
+# activations/ + sae/ checkpoints present. We
 # symlink them under data/ (idempotent). No model downloads beyond the HF cache
 # the causal stages need (Pythia-410m, Chronos-t5-small).
 set -euo pipefail
@@ -20,10 +21,23 @@ echo "== [0/6] core unit tests (model-free) =="
 $PY -m pytest tests/ -q
 
 echo "== [1/6] stage legacy data under data/ (idempotent) =="
-LLM=../llm-sae-difficulty
-TSFM=../tsfm-sae-routing
-[ -d "$LLM/activations" ] || { echo "missing $LLM/activations — clone/extract the legacy LLM repo"; exit 1; }
-[ -d "$TSFM/activations" ] || { echo "missing $TSFM/activations — clone/extract the legacy TSFM repo"; exit 1; }
+# Resolve the sibling repos by whatever name they were cloned under. The repos
+# have been renamed over time (…-routing -> …-difficulty), and GitHub clones
+# land in a dir named after the repo, so accept both. Override with
+# LLM=/path TSFM=/path bash reproduce.sh if they live elsewhere.
+pick_repo() {  # $1 = label for errors; rest = candidate paths
+  local label=$1; shift
+  for cand in "$@"; do
+    [ -d "$cand/activations" ] && { echo "$cand"; return 0; }
+  done
+  echo "missing $label repo — looked for activations/ under: $*" >&2
+  echo "  clone/extract the legacy $label repo beside this one, or set $label=/path" >&2
+  exit 1
+}
+LLM=${LLM:-$(pick_repo LLM  ../llm-sae-difficulty  ../llm-sae-routing)}
+TSFM=${TSFM:-$(pick_repo TSFM ../tsfm-sae-difficulty ../tsfm-sae-routing)}
+echo "  LLM  = $LLM"
+echo "  TSFM = $TSFM"
 mkdir -p data/llm/hellaswag data/llm/squad data/tsfm/etth1
 for sub in hellaswag squad; do
   for d in activations activations_late activations_base sae; do
