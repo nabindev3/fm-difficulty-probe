@@ -76,7 +76,8 @@ def row_for(run: str, results_dir: str) -> dict:
 
 def render_markdown(rows: list[dict]) -> str:
     L = ["# Cross-modal synthesis\n",
-         "**Predictive null + causal positive + deployable selective predictor.**\n",
+         "**Universal predictive null + universal deployable predictor + "
+         "LLM-specific causal signal.**\n",
          "| metric | " + " | ".join(r["run"] for r in rows) + " |",
          "|---|" + "---|" * len(rows)]
 
