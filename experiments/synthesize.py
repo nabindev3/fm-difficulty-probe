@@ -71,7 +71,32 @@ def row_for(run: str, results_dir: str) -> dict:
         out["cascade_dom_pts"] = {k: v["n_dominating_points"] for k, v in casc["probes"].items()}
     out["causal_all"] = c_all
     out["causal_last"] = c_last
+    out["perm_p"] = _perm_p(base)
     return out
+
+
+def _perm_p(base: str):
+    """Label-permutation p-value for Δ(SAE − raw) = AUROC(P3) − AUROC(P2),
+    recomputed from the persisted test scores (the roadmap's permutation axis)."""
+    import sys
+    sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    path = os.path.join(base, "probe_scores.parquet")
+    if not os.path.exists(path):
+        return None
+    try:
+        import pandas as pd
+        from core.stats import label_permutation_test
+    except ImportError:
+        return None  # optional row; never break the whole synthesis on a missing dep
+    df = pd.read_parquet(path)
+    need = {"y_test", "pred_P3_cheap_sae", "pred_P2_cheap_raw"}
+    if not need.issubset(df.columns) or df["y_test"].nunique() < 2:
+        return None
+    res = label_permutation_test(df["y_test"].values,
+                                 df["pred_P3_cheap_sae"].values,
+                                 df["pred_P2_cheap_raw"].values, n_perm=10000)
+    return {"observed_delta": res["observed_delta"],
+            "p_one_sided": res["p_one_sided"], "p_two_sided": res["p_two_sided"]}
 
 
 def render_markdown(rows: list[dict]) -> str:
@@ -97,11 +122,25 @@ def render_markdown(rows: list[dict]) -> str:
     L.append(line("P3 cheap+SAE AUROC", lambda r: f"{r.get('P3_sae','—')}"))
     L.append(line("**Δ SAE over raw**", lambda r: fmt_ci(r.get("delta_sae_over_raw"))))
     L.append(line("Δ SAE over cheap", lambda r: fmt_ci(r.get("delta_sae_over_cheap"))))
+
+    def fmt_perm(p):
+        if not p:
+            return "—"
+        v = p["p_one_sided"]
+        return ("<1e-4" if v == 0 else f"{v:.4g}") + " (1-sided)"
+    L.append(line("label-perm p (Δ SAE−raw)", lambda r: fmt_perm(r.get("perm_p"))))
     L.append(line("causal: all-position", lambda r: fmt_causal(r.get("causal_all"))))
     L.append(line("causal: single-position", lambda r: fmt_causal(r.get("causal_last"))))
     L.append(line("selective: % oracle",
                   lambda r: f"{r['selective_best'][0]} {r['selective_best'][1]}%"
                   if r.get("selective_best") else "—"))
+
+    def fmt_casc(d):
+        if not d:
+            return "—"
+        return ", ".join(f"{v} ({k.replace('_cheap','').replace('_sae','SAE').replace('P1','P1').replace('P3','P3')})"
+                         for k, v in d.items())
+    L.append(line("cascade: Pareto-dom pts", lambda r: fmt_casc(r.get("cascade_dom_pts"))))
     L.append(
         "\n**Reading.**\n"
         "1. *Predictive null replicates in BOTH modalities* — SAE adds no power "
