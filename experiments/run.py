@@ -32,6 +32,8 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+import core._repro  # noqa: F401  — pins single-thread BLAS before numpy import
+
 import numpy as np
 import pandas as pd
 import yaml
@@ -373,7 +375,6 @@ def main():
 
     # Causal is dispatched before building the adapter (it spawns its own process).
     if exp == "causal":
-        cfg["modality"]  # ensure present
         stage_causal(None, cfg, args, out_dir)
         return
 

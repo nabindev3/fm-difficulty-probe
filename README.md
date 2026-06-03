@@ -98,29 +98,34 @@ FAST=1 bash reproduce.sh                # probe table only (skip heavy causal)
 
 Every experiment writes a uniform artifact pair — `<name>.json` (full detail) +
 `<name>.parquet` (flat table) — plus PNG figures (risk-coverage, Pareto, reliability)
-under `results/<experiment>/`. Guardrails: the runner refuses a missing /
-non-TopKSAE / random-init checkpoint and single-class labels, and sets the
-threading backend + MPS device for Apple Silicon. (Activation *extraction* and its
+under `results/<experiment>/`. Runs are **bit-reproducible**: probes seed
+liblinear (`random_state`) and the entrypoints pin BLAS to a single thread
+(`core/_repro.py`), so a fresh `run.py` reproduces the committed CIs exactly (set
+`OMP_NUM_THREADS=8` to trade exact bits for speed). Guardrails: the runner refuses
+a missing / non-TopKSAE / random-init checkpoint and single-class labels, and sets
+the threading backend + MPS device for Apple Silicon. (Activation *extraction* and its
 `--skip_predict` flag remain in the legacy `extract_activations.py`; this repo
 starts from cached activations — see `configs/README.md` for staging.)
 
 ## Reproduced results (real runs, in `results/`)
 
-The unified pipeline reproduces the legacy LLM numbers **exactly** and the TSFM
-numbers qualitatively (with an improved train-only label threshold). The
-cross-modal synthesis lives in `results/cross_modal_synthesis.md`:
+The unified pipeline reproduces the legacy headline numbers of **both** modalities
+exactly through the shared code (the default TSFM config uses the legacy
+whole-dataset label threshold; a train-only threshold is an opt-in leakage fix
+that leaves the conclusion unchanged — see `SEAMS.md` §6). The cross-modal
+synthesis lives in `results/cross_modal_synthesis.md`:
 
 All three runs reproduce the legacy headline numbers through the shared code
 (the Phase-2 regression gate): LLM SQuAD/L18 raw = **0.716**; TSFM Δ(SAE−cheap)
-= **−0.227** (legacy −0.228); selective **41%** (LLM) / **30%** (TSFM).
+= **−0.228** (reproducing the legacy headline exactly); selective **41%** (LLM) / **30%** (TSFM).
 
 | | HellaSwag | SQuAD (mid) | ETTh1 |
 |---|---|---|---|
 | P1 cheap AUROC | 0.509 | 0.590 | 0.654 |
 | P2 cheap+raw   | 0.472 | 0.671 | 0.584 |
 | P3 cheap+SAE   | 0.500 | 0.592 | 0.426 |
-| **Δ SAE over raw** | +0.028 [−0.001,+0.058] | −0.079 [−0.118,−0.041] | −0.158 [−0.291,−0.025] |
-| Δ SAE over cheap | −0.009 [−0.039,+0.020] | +0.002 [−0.044,+0.047] | −0.227 [−0.365,−0.091] |
+| **Δ SAE over raw** | +0.028 [−0.001,+0.058] | −0.079 [−0.118,−0.041] | −0.158 [−0.293,−0.025] |
+| Δ SAE over cheap | −0.009 [−0.039,+0.020] | +0.002 [−0.044,+0.047] | −0.228 [−0.366,−0.092] |
 | causal all-pos | 5/5 sig | 5/5 sig | **0/5 sig** |
 | causal single-pos | 0/5 sig | 2/5 sig | **0/5 sig** |
 | selective % oracle | 2.0% (P1) | 41.3% (raw) | 30.5% (P1) |

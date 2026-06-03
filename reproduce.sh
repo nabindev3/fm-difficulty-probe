@@ -13,6 +13,10 @@
 # the causal stages need (Pythia-410m, Chronos-t5-small).
 set -euo pipefail
 export USE_TF=0 USE_FLAX=0 TRANSFORMERS_NO_ADVISORY_WARNINGS=1
+# Single-thread BLAS for bit-reproducible bootstrap CIs (see core/_repro.py).
+# Override with OMP_NUM_THREADS=8 bash reproduce.sh to trade exact bits for speed.
+export OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1 \
+       VECLIB_MAXIMUM_THREADS=1 NUMEXPR_NUM_THREADS=1
 PY=${PY:-python3}
 HERE="$(cd "$(dirname "$0")" && pwd)"
 cd "$HERE"

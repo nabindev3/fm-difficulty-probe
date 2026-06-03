@@ -50,39 +50,35 @@ def rank_top_features(
     train_mask: np.ndarray,
     k_features: int = 5,
     C: float = 0.1,
+    n_blocks: int = 1,
+    seed: int = 42,
 ) -> tuple[list[int], np.ndarray]:
     """Rank latents by |L1-logistic coefficient| on pooled SAE codes (train only).
 
-    `sae_codes_pooled` is (N, d_hidden) — e.g. max-pooled codes per item. If a
-    concatenated mean/max/last pooling (N, 3*d_hidden) is passed, the per-latent
-    importance is summed across the three blocks.
+    `sae_codes_pooled` is (N, n_blocks * d_hidden). With the default n_blocks=1 it
+    is a single d_hidden-wide pooling (e.g. max-pool); pass n_blocks=3 if the
+    caller concatenated mean/max/last poolings, in which case per-latent
+    importance is summed across the blocks. Returns the top-k latent indices into
+    [0, d_hidden) and the folded per-latent importance vector.
     """
     sae_codes_pooled = np.asarray(sae_codes_pooled, dtype=float)
     y = np.asarray(y).astype(int)
+    width = sae_codes_pooled.shape[1]
+    if width % n_blocks != 0:
+        raise ValueError(f"feature width {width} not divisible by n_blocks={n_blocks}")
+
     scaler = StandardScaler()
     X_tr = scaler.fit_transform(sae_codes_pooled[train_mask])
     clf = LogisticRegression(
         penalty="l1", solver="liblinear",
-        class_weight="balanced", max_iter=2000, C=C,
+        class_weight="balanced", max_iter=2000, C=C, random_state=seed,
     )
     clf.fit(X_tr, y[train_mask])
     coefs = np.abs(clf.coef_[0])
 
-    d = sae_codes_pooled.shape[1]
-    # If pooled features are a 3x concat, fold importance back to d_hidden.
-    if d % 3 == 0:
-        folded = coefs.reshape(3, d // 3).sum(axis=0) if _looks_concat(coefs) else coefs
-    else:
-        folded = coefs
+    folded = coefs.reshape(n_blocks, width // n_blocks).sum(axis=0) if n_blocks > 1 else coefs
     top = np.argsort(-folded)[:k_features].tolist()
     return [int(i) for i in top], folded
-
-
-def _looks_concat(coefs: np.ndarray) -> bool:
-    # Heuristic guard; callers that pool by concat should pass the d_hidden width
-    # explicitly via rank_top_features on a (N, d_hidden) matrix instead. Kept
-    # conservative: only fold when length is divisible by 3 AND > 3.
-    return coefs.shape[0] > 3 and coefs.shape[0] % 3 == 0
 
 
 def make_recon_hook(

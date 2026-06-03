@@ -76,7 +76,7 @@ def recalibrate_oof(
     for tr_idx, te_idx in kf.split(X_train):
         clf = LogisticRegression(
             penalty="l1", solver="liblinear",
-            class_weight="balanced", max_iter=2000, C=C,
+            class_weight="balanced", max_iter=2000, C=C, random_state=seed,
         )
         clf.fit(X_train[tr_idx], y_train[tr_idx])
         p_oof[te_idx] = clf.predict_proba(X_train[te_idx])[:, 1]
@@ -84,7 +84,7 @@ def recalibrate_oof(
     # Final probe on full train -> raw test predictions.
     base = LogisticRegression(
         penalty="l1", solver="liblinear",
-        class_weight="balanced", max_iter=2000, C=C,
+        class_weight="balanced", max_iter=2000, C=C, random_state=seed,
     )
     base.fit(X_train, y_train)
     p_te_raw = base.predict_proba(X_test)[:, 1]

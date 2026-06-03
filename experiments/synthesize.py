@@ -16,6 +16,11 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import sys
+
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+import core._repro  # noqa: F401  — pins single-thread BLAS before numpy
 
 
 def _load(path):
@@ -78,8 +83,6 @@ def row_for(run: str, results_dir: str) -> dict:
 def _perm_p(base: str):
     """Label-permutation p-value for Δ(SAE − raw) = AUROC(P3) − AUROC(P2),
     recomputed from the persisted test scores (the roadmap's permutation axis)."""
-    import sys
-    sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     path = os.path.join(base, "probe_scores.parquet")
     if not os.path.exists(path):
         return None
@@ -135,11 +138,13 @@ def render_markdown(rows: list[dict]) -> str:
                   lambda r: f"{r['selective_best'][0]} {r['selective_best'][1]}%"
                   if r.get("selective_best") else "—"))
 
+    def _short(rung):  # P3_cheap_sae -> P3-SAE, P1_cheap -> P1
+        return rung.replace("_cheap_sae", "-SAE").replace("_cheap_raw", "-raw").replace("_cheap", "")
+
     def fmt_casc(d):
         if not d:
             return "—"
-        return ", ".join(f"{v} ({k.replace('_cheap','').replace('_sae','SAE').replace('P1','P1').replace('P3','P3')})"
-                         for k, v in d.items())
+        return ", ".join(f"{v} ({_short(k)})" for k, v in d.items())
     L.append(line("cascade: Pareto-dom pts", lambda r: fmt_casc(r.get("cascade_dom_pts"))))
     L.append(
         "\n**Reading.**\n"

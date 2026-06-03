@@ -13,6 +13,10 @@ from __future__ import annotations
 
 import numpy as np
 
+# np.trapezoid is the numpy>=2.0 name; np.trapz is the <2.0 name. Support both so
+# the AURC computation doesn't depend on the numpy major version.
+_trapz = getattr(np, "trapezoid", None) or np.trapz
+
 
 def risk_coverage_curve(
     scores: np.ndarray,
@@ -45,7 +49,7 @@ def risk_coverage_curve(
         "curve": curve,
         "ci95_lower": lo,
         "ci95_upper": hi,
-        "aurc": float(np.trapezoid(curve, coverages)),
+        "aurc": float(_trapz(curve, coverages)),
     }
 
 
@@ -92,8 +96,8 @@ def selective_prediction(
 
     o_curve = oracle_curve(errors, coverages)
     r_curve = random_curve(errors, coverages, n_bootstrap=n_bootstrap, seed=seed)
-    oracle_aurc = float(np.trapezoid(o_curve, coverages))
-    random_aurc = float(np.trapezoid(r_curve, coverages))
+    oracle_aurc = float(_trapz(o_curve, coverages))
+    random_aurc = float(_trapz(r_curve, coverages))
 
     probes = {}
     for name, scores in score_dict.items():

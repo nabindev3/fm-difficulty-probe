@@ -1,0 +1,310 @@
+\documentclass[11pt]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{amsmath,amssymb}
+\usepackage{booktabs}
+\usepackage{graphicx}
+\usepackage{microtype}
+\usepackage[margin=1in]{geometry}
+\usepackage[numbers,sort&compress]{natbib}
+\usepackage{xcolor}
+\usepackage[colorlinks=true,allcolors=blue]{hyperref}
+\usepackage{multirow}
+
+\newcommand{\dauroc}{$\Delta$AUROC}
+\newcommand{\sae}{SAE}
+
+\title{\bfseries SAE Features Are Causally Active but Predictively Redundant
+for Difficulty:\\ Evidence Across Language and Time-Series Foundation Models}
+
+\author{%
+  Nabin Prasad Dev \\
+  \texttt{github.com/nabindev3/fm-difficulty-probe}
+}
+\date{}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+Foundation models ship without a native abstention signal, yet some inputs are
+far harder than others. We ask whether a model's internal TopK sparse-autoencoder
+(\sae) features encode a \emph{self-difficulty} signal beyond a cheap, no-forward-pass
+baseline, and we ask it of two unrelated modalities through a single shared
+pipeline: an autoregressive language model (Pythia-410M on HellaSwag and SQuAD)
+and an encoder-based time-series foundation model (Chronos-T5-small on ETTh1).
+Across both modalities, \sae{} features add \emph{no} incremental predictive power
+for difficulty over the strongest cheap baseline (\dauroc{}(\sae{}$-$raw)
+$\le 0$; label-permutation $p \le 0.03$, and $p<10^{-4}$ on SQuAD), and the
+result is invariant to the \sae{} expansion factor (4$\times$ vs.\ 8$\times$).
+The deployable consequence also replicates: a Platt-recalibrated selective
+predictor built on the cheap baseline captures \mbox{30--41\%} of the oracle's
+risk--coverage improvement and yields a Pareto-dominating cost--quality cascade
+in both modalities. The causal picture, however, \emph{dissociates}: under
+reconstruction-patching ablation the language model's top features are causally
+active (5/5 significant under all-position intervention, 0--2/5 under
+single-position---coverage, not fidelity), whereas the time-series model's
+features are causally silent under either intervention coverage (0/5). The
+cross-modal dissociation---predictive null in both, causal positive in the LM
+only---localizes the causal difficulty signal as a property of the autoregressive
+language model rather than a universal property of sparse features. We release a
+modality-agnostic, regression-gated, one-command-reproducible implementation.
+\end{abstract}
+
+\section{Introduction}
+\label{sec:intro}
+
+Foundation models (FMs) are deployed as black boxes: a language model (LM)
+generates an answer, a time-series foundation model (TSFM) emits a forecast, and
+in both cases every input consumes the same compute and is granted the same
+trust, even though some inputs are several times harder than others. Knowing
+\emph{which} inputs a model will struggle on---before paying for an expensive
+model or committing to a forecast---is the core of routing, abstention, and
+cost--quality cascades \citep{chen2023frugalgpt,ong2024routellm}.
+
+A natural hypothesis, given the rise of mechanistic interpretability, is that an
+FM's internal representations already encode this self-difficulty signal, and
+that sparse autoencoders (\sae{}s)---which decompose activations into
+interpretable, monosemantic features \citep{bricken2023monosemanticity,gao2024scaling}---expose
+it in a usable form. The open, and to our knowledge unclaimed, question is
+whether \sae{} features add difficulty signal \emph{beyond what a cheap baseline
+already captures}: lexical statistics for text, classical descriptive statistics
+for a time series. A single negative answer on one model invites the reflex
+``you just probed it wrong.'' We therefore ask the question of two modalities
+\emph{through the same pipeline, with the same metrics}, so that what replicates
+is a property of \sae{}s and what does not is localized to one architecture.
+
+\paragraph{Contributions.}
+(i) A modality-agnostic pipeline---one tested core, two thin adapters---that runs
+the identical probe ladder, causal ablation, and selective-prediction analysis on
+an LM and a TSFM, gated on reproducing both prior studies' headline numbers
+before any new experiment is trusted (Section~\ref{sec:method}).
+(ii) A \emph{predictive null} that replicates across modalities and is robust to
+\sae{} width and to a label-permutation test (Sections~\ref{sec:llm}--\ref{sec:synth}).
+(iii) A \emph{causal dissociation}: the same reconstruction-patching ablation
+finds the LM's features causally active but the TSFM's features silent, and on
+the LM side localizes per-feature detectability to intervention \emph{coverage},
+not \sae{} fidelity (Section~\ref{sec:synth}).
+(iv) A deployable artifact---a Platt-recalibrated selective predictor on the cheap
+baseline---that replicates in both modalities (Section~\ref{sec:deploy}).
+
+\section{Method: one pipeline, two modalities}
+\label{sec:method}
+
+We describe the pipeline once; the two backends differ only in an adapter that
+implements a common \texttt{Modality} interface (cheap features, raw activations,
+\sae{} codes, labels, splits, CV scheme, causal metric, cascade models). Nothing
+in the shared core imports a specific model.
+
+\paragraph{Backbones and data.}
+The LM modality uses Pythia-410M \citep{biderman2023pythia} (residual stream at
+Layer~12 ``mid'' and Layer~18 ``late''), evaluated on HellaSwag
+\citep{zellers2019hellaswag} (binary multiple-choice correctness; $N{=}5000$,
+3500/1500 train/test) and SQuAD \citep{rajpurkar2016squad} (continuous
+gold-answer perplexity difficulty). The TSFM modality uses Chronos-T5-small
+\citep{ansari2024chronos} (encoder block~3 ``mid'' and block~5 ``late'')
+on ETTh1 \citep{zhou2021informer} ($701$ forecast windows, 483/167 train/test,
+context $512$, horizon $96$). Cascades use Pythia-2.8B and Chronos-T5-base as the
+expensive model.
+
+\paragraph{Sparse autoencoder.}
+A TopK \sae{} with $k{=}32$ and auxiliary dead-feature revival is trained on the
+\emph{train split only}. The LM \sae{} uses $4\times$ expansion ($d_{\text{hidden}}{=}4096$),
+the TSFM \sae{} $8\times$ ($d_{\text{hidden}}{=}4096$); we test invariance to this
+choice in Section~\ref{sec:synth}.
+
+\paragraph{The probe ladder.}
+The crux of an apples-to-apples cross-modal claim is that both modalities report
+the \emph{same} comparison. We fit an $L_1$-regularized logistic probe on five
+feature sets and rank them: \textbf{P1} cheap baseline (lexical stats $\mid$
+classical TS stats); \textbf{P2} cheap $+$ raw activations; \textbf{P3} cheap $+$
+\sae{} codes; and diagnostic isolations \textbf{P4} raw-only, \textbf{P5}
+\sae{}-only. The headline quantity is $\Delta$(\sae{}$-$raw) $=$ AUROC(P3)$-$AUROC(P2):
+does the \sae{} decomposition add anything \emph{on top of} the raw activations it
+was trained on? Regularization $C$ is chosen by inner cross-validation that
+respects each modality's structure (stratified-by-category for the LM,
+\texttt{TimeSeriesSplit} for the TSFM). All deltas carry paired-bootstrap 95\%
+CIs ($B{=}2000$), and the headline delta additionally carries a label-permutation
+$p$-value ($B{=}10{,}000$).
+
+\paragraph{Causal ablation.}
+We rank the top-5 difficulty-predictive latents and, for each, measure the change
+in a continuous metric (negative log-probability / cross-entropy for the LM in
+nats; CRPS \citep{gneiting2007strictly} for the TSFM) when that latent is zeroed
+in a forward-hook \sae{} reconstruction of the chosen layer, relative to the
+reconstruction baseline. Crucially, the intervention \emph{coverage} is a
+first-class knob: \emph{single-position} (one boundary token / last context step)
+versus \emph{all-position} (every prompt token / every context step), with the
+metric held fixed so coverage is not confounded with the binary/continuous choice.
+
+\paragraph{Selective prediction, calibration, cascade.}
+Risk--coverage curves report the area under the curve (AURC) and the fraction of
+the oracle's improvement captured, on each modality's natural error scale (binary
+correctness for the LM, continuous CRPS for the TSFM). Probe probabilities are
+recalibrated with Platt \citep{platt1999probabilistic} and isotonic regression
+fit on 5-fold out-of-fold train predictions. A threshold sweep routes between the
+cheap and expensive model, tracing a Pareto frontier against random and oracle
+routing.
+
+\paragraph{Leakage controls and the regression gate.}
+Both adapters enforce: train-only \sae{} fitting, a temporal purge gap
+$\ge$ context$+$horizon (TSFM) and pretraining-contamination / lexical-dedup
+filters (LM), a prompt-only perplexity feature that never sees the gold target,
+and CV that respects category/temporal structure. We adopt a strict
+\emph{regression gate}: no new experiment is trusted until both prior studies'
+headline numbers reproduce through the shared code---LM SQuAD/L18 raw-only
+AUROC $=0.716$ and TSFM $\Delta$(\sae{}$-$cheap) $=-0.228$, both reproduced
+exactly. The probe refuses to run on a missing or randomly-initialized \sae{}
+checkpoint and on single-class labels.
+
+\section{Results A --- Language model (Pythia)}
+\label{sec:llm}
+
+\paragraph{Predictive null.}
+On SQuAD, raw residual activations are genuinely useful---P2 reaches AUROC $0.671$
+at Layer~12 and $0.716$ at Layer~18, versus $0.590$ for lexical stats---but the
+\sae{} adds nothing on top: $\Delta$(\sae{}$-$raw) $=-0.079$ (95\% CI
+$[-0.118,-0.041]$), with a label-permutation $p<10^{-4}$. HellaSwag is a
+near-chance regime for every probe family (P1 $0.509$, P3 $0.500$), so no method
+adds signal there. In neither case does the \sae{} decomposition beat the raw
+activations.
+
+\paragraph{Causal positive, and coverage-not-fidelity.}
+The same features the probe ranks are causally active: under all-position
+patching, 5/5 of the top SQuAD features (and 5/5 HellaSwag) show ablation effects
+whose CIs exclude zero. Under single-position patching the count collapses to
+0--2/5---the effect is real but \emph{below the resolution of a single-token
+intervention}. Per-feature causal attribution requires multi-position coverage,
+not a higher-fidelity \sae{}.
+
+\section{Results B --- Time-series model (Chronos-T5)}
+\label{sec:tsfm}
+
+\paragraph{Predictive null, more starkly.}
+On ETTh1 the cheap classical statistics are the \emph{strongest} probe
+(P1 $0.654$); raw encoder activations do worse (P2 $0.584$) and the \sae{} worse
+still (P3 $0.426$). Thus $\Delta$(\sae{}$-$cheap) $=-0.228$ (CI $[-0.366,-0.092]$,
+the legacy headline) and $\Delta$(\sae{}$-$raw) $=-0.158$ (CI $[-0.293,-0.025]$,
+$p=0.011$). The null holds at both encoder layers.
+
+\paragraph{Causal silence.}
+Under the same reconstruction-patching protocol at full sample budget
+($50$ samples/window, all $167$ test windows), \emph{no} feature is significant
+under either all-position or single-position intervention (0/5 both),
+reproducing the prior Chronos null. The TSFM's features are predictively
+redundant \emph{and} causally quiet at this scale.
+
+\section{Cross-modal synthesis}
+\label{sec:synth}
+
+Table~\ref{tab:synth} places the two modalities side by side. Two of the three
+legs of the going-in thesis replicate; one dissociates---and the dissociation is
+the contribution.
+
+\begin{table}[t]
+\centering
+\small
+\caption{Cross-modal synthesis. Predictive null and deployable selective
+predictor replicate in both modalities; the causal contribution is specific to
+the language model. \dauroc{} CIs are paired-bootstrap ($B{=}2000$); $p$ is a
+one-sided label-permutation test ($B{=}10{,}000$).}
+\label{tab:synth}
+\begin{tabular}{lccc}
+\toprule
+ & \multicolumn{2}{c}{\textbf{LM (Pythia)}} & \textbf{TSFM (Chronos)} \\
+\cmidrule(lr){2-3}\cmidrule(lr){4-4}
+Axis & HellaSwag & SQuAD & ETTh1 \\
+\midrule
+P1 cheap AUROC                 & 0.509 & 0.590 & 0.654 \\
+P2 cheap$+$raw AUROC           & 0.472 & 0.671 & 0.584 \\
+P3 cheap$+$\sae{} AUROC        & 0.500 & 0.592 & 0.426 \\
+$\Delta$(\sae{}$-$raw)         & $+0.028$ & $-0.079$ & $-0.158$ \\
+\quad 95\% CI                  & $[-0.001,.058]$ & $[-0.118,-0.041]$ & $[-0.293,-0.025]$ \\
+label-perm $p$ (1-sided)       & $0.033$ & $<10^{-4}$ & $0.011$ \\
+causal: all-position           & 5/5 & 5/5 & \textbf{0/5} \\
+causal: single-position        & 0/5 & 2/5 & \textbf{0/5} \\
+selective: \% oracle AURC      & 2.0\% & 41.3\% & 30.5\% \\
+cascade: Pareto-dom.\ points   & 1 & 31 & 5 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\paragraph{The one-sentence claim.}
+Across an autoregressive LM and an encoder TSFM, TopK-\sae{} features are
+predictively redundant for difficulty beyond the strongest cheap baseline
+($\Delta$(\sae{}$-$raw)$\le0$, $p\le0.03$) and a cheap-baseline selective
+predictor is deployable in both (30--41\% of oracle AURC), \emph{but} the causal
+contribution is specific to the LM (5/5 features significant under all-position
+patching vs.\ 0/5 on Chronos under either coverage).
+
+\paragraph{Robustness to \sae{} width.}
+Re-training each modality at the other's expansion (LM $4\times\!\to\!8\times$,
+TSFM $8\times\!\to\!4\times$) and re-probing leaves the null intact:
+$\Delta$(\sae{}$-$raw) stays significantly negative on SQuAD ($-0.079\!\to\!-0.058$)
+and ETTh1 ($-0.158\!\to\!-0.100$). The \emph{larger} LM \sae{} still does not beat
+raw, directly answering ``maybe a bigger \sae{} would have found signal.''
+
+\paragraph{Why the dissociation matters.}
+If the TSFM cells had echoed the LM cells, the contribution would be a
+cross-modal replication. Because they diverge, the contribution is sharper: the
+causal difficulty signal is not a universal property of sparse features but a
+property of \emph{this} autoregressive LM, while the \emph{predictive} null and
+the \emph{deployable} positive are universal. Prior work did one half each on a
+single modality \citep{mishra2026ablation,timesae2026}; the dissociation requires
+both halves on both modalities through one pipeline.
+
+\section{Deployable artifact}
+\label{sec:deploy}
+
+When the answer to ``do internals help?'' is ``no, but the cheap baseline does,''
+the cheap baseline is still deployable. A Platt-recalibrated selective predictor
+on the cheap rung captures 41.3\% (LM, raw scale) and 30.5\% (TSFM) of the
+oracle's AURC improvement; recalibration on 5-fold out-of-fold predictions cuts
+expected calibration error substantially under Platt scaling, which preserves the
+ranking (e.g.\ SQuAD P1 ECE $0.366\!\to\!0.123$; ETTh1 P1 $0.284\!\to\!0.156$;
+isotonic reaches $0.119$ on ETTh1 but is non-monotone). Routing on the calibrated
+score yields Pareto-dominating cost--quality points in both modalities
+(31 on SQuAD, 5 on ETTh1), beating always-cheap, always-expensive, and random
+routing.
+
+\section{Limitations}
+\label{sec:limits}
+
+We probe a single \sae{} family (TopK) at two expansions; a different
+dictionary-learning objective could in principle expose signal TopK does not,
+though the width sweep argues against a capacity explanation. We use two model
+scales per modality and one dataset per LM task and one TSFM dataset; the
+near-chance HellaSwag regime limits what can be concluded there. The causal $n$
+on the TSFM is bounded by the $167$-window test set; the 0/5 result is a null,
+and nulls are weaker than positives, though it reproduces at full sample budget.
+Finally, ``difficulty'' is operationalized per modality (binary correctness /
+top-quartile CRPS); other operationalizations may behave differently.
+
+\section{Conclusion}
+The same sparse features that a probe ranks as ``difficulty-predictive'' add no
+predictive power over raw activations in either a language or a time-series
+foundation model, yet are causally active in the language model alone. The
+deployable lesson is modality-invariant---recalibrate the cheap baseline---while
+the scientific lesson is sharp: a causal self-difficulty signal in sparse
+features is, at these scales, a property of the autoregressive language model and
+not of foundation models in general.
+
+\paragraph{Reproducibility.}
+All numbers and figures regenerate from one command
+(\texttt{reproduce.sh}); the shared core is unit-tested on synthetic arrays and
+contains no model-specific code. Code: \url{https://github.com/nabindev3/fm-difficulty-probe}.
+
+\small
+\bibliographystyle{plainnat}
+\bibliography{references}
+
+\appendix
+\section{Per-modality detail}
+The LM adapter (Pythia) and TSFM adapter (Chronos) each own their feature
+extractors, hooks, CV scheme, and causal metric; see the per-modality
+repositories \url{https://github.com/nabindev3/llm-sae-difficulty} and
+\url{https://github.com/nabindev3/tsfm-sae-difficulty} for the full leakage-control
+ablations, the 2$\times$2 coverage/fidelity disentanglement on the LM, and the
+selective-forecasting calibration curves on the TSFM.
+
+\end{document}

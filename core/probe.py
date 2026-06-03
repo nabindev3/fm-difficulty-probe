@@ -25,6 +25,7 @@ Nothing here imports torch or any model: features come in as numpy arrays.
 """
 from __future__ import annotations
 
+import warnings
 from typing import Iterable
 
 import numpy as np
@@ -107,15 +108,21 @@ def run_probe_ladder(
         X_tr = scaler.fit_transform(X[train_mask])
         X_te = scaler.transform(X[test_mask])
 
+        # random_state pins liblinear's internal coordinate-descent ordering;
+        # without it the same seed yields slightly different fits run-to-run.
         base = LogisticRegression(
             penalty="l1", solver="liblinear",
-            class_weight="balanced", max_iter=2000,
+            class_weight="balanced", max_iter=2000, random_state=seed,
         )
+        # n_jobs=-1 parallelizes the (C × fold) grid of fits across threads; the
+        # threading backend avoids fork deadlocks on Apple Silicon. The liblinear
+        # "n_jobs has no effect" notice refers to the solver's *internal*
+        # threading (irrelevant here), so we scope-suppress that one message.
         gs = GridSearchCV(base, {"C": c_grid}, scoring="roc_auc",
                           cv=list(cv_splits), n_jobs=-1)
-        # cv_splits is a list (materialized), so re-iterating per rung is fine.
         from joblib import parallel_backend
-        with parallel_backend("threading"):
+        with warnings.catch_warnings(), parallel_backend("threading"):
+            warnings.filterwarnings("ignore", message=".*n_jobs.*liblinear.*")
             gs.fit(X_tr, y_train)
         p = gs.predict_proba(X_te)[:, 1]
         preds[name] = p

@@ -25,6 +25,8 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+import core._repro  # noqa: F401  — pins single-thread BLAS before numpy
+
 import numpy as np
 import pandas as pd
 import torch
@@ -59,6 +61,9 @@ def main():
     ap.add_argument("--max_windows", type=int, default=None)
     ap.add_argument("--layer", default="mid")
     ap.add_argument("--seed", type=int, default=42)
+    ap.add_argument("--no_crn", action="store_true",
+                    help="Disable Common Random Numbers (independent MC draws per "
+                         "condition; matches the legacy noisier estimator).")
     args = ap.parse_args()
     np.random.seed(args.seed)
     torch.manual_seed(args.seed)
@@ -113,7 +118,14 @@ def main():
     feat_hooks = {f: make_recon_hook(sae, ablated_features=[f], positions=args.positions)
                   for f in top}
 
-    def predict_crps(hook_fn, context, truth):
+    def predict_crps(hook_fn, context, truth, mc_seed=None):
+        # Common Random Numbers: reseeding before predict makes every condition for
+        # a window draw the SAME Monte-Carlo trajectories, so the per-feature
+        # ΔCRPS isolates the intervention effect instead of being swamped by
+        # sampling noise. This either tightens the null or fairly reveals a small
+        # effect; it does not bias the point estimate. Disable with --no_crn.
+        if mc_seed is not None:
+            torch.manual_seed(mc_seed)
         h = hook_module.register_forward_hook(hook_fn) if hook_fn else None
         try:
             with torch.no_grad():
@@ -126,15 +138,19 @@ def main():
         return compute_crps(fc[0], truth)
 
     rows = []
-    for _, row in tqdm(list(test.iterrows()), total=len(test)):
+    for wi, (_, row) in enumerate(tqdm(list(test.iterrows()), total=len(test))):
         s = int(row["start_ts"])
         context = torch.tensor(series[s:s + ctx_len], dtype=torch.float32)
         truth = series[s + ctx_len:s + ctx_len + args.prediction_length]
+        # One MC seed per window, shared across recon + all ablations (CRN).
+        w_seed = None if args.no_crn else (args.seed * 100003 + wi)
+        # Re-forecast the natural (no-hook) condition under the SAME CRN seed, so
+        # Δ(recon−natural) is paired too (the metadata crps_raw used independent draws).
         out = {"window_id": int(row["window_id"]),
-               "crps_natural": float(row["crps_raw"]),
-               "crps_sae_recon": predict_crps(recon_hook, context, truth)}
+               "crps_natural": predict_crps(None, context, truth, mc_seed=w_seed),
+               "crps_sae_recon": predict_crps(recon_hook, context, truth, mc_seed=w_seed)}
         for f in top:
-            out[f"crps_ablate_{f}"] = predict_crps(feat_hooks[f], context, truth)
+            out[f"crps_ablate_{f}"] = predict_crps(feat_hooks[f], context, truth, mc_seed=w_seed)
         rows.append(out)
 
     df = pd.DataFrame(rows)

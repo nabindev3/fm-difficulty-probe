@@ -18,8 +18,8 @@ SAE *over raw*. The TSFM P2 rung is now first-class.
 
 | Δ SAE over raw | HellaSwag | SQuAD | ETTh1 |
 |---|---|---|---|
-| point [95% CI] | +0.028 [−0.001,+0.058] | −0.079 [−0.118,−0.041] | −0.158 [−0.291,−0.025] |
-| Δ SAE over cheap | −0.009 [−0.039,+0.020] | +0.002 [−0.044,+0.047] | −0.227 [−0.365,−0.091] |
+| point [95% CI] | +0.028 [−0.001,+0.058] | −0.079 [−0.118,−0.041] | −0.158 [−0.293,−0.025] |
+| Δ SAE over cheap | −0.009 [−0.039,+0.020] | +0.002 [−0.044,+0.047] | −0.228 [−0.366,−0.092] |
 
 In no modality does the SAE add predictive power over raw activations.
 
@@ -27,7 +27,7 @@ In no modality does the SAE add predictive power over raw activations.
 through the shared code before any new experiment was trusted:
 - LLM SQuAD/L18 raw-only AUROC = **0.716** (`--layer late`).
 - LLM SQuAD/L12 raw-only = 0.667; full mid ladder reproduces the legacy JSON exactly.
-- TSFM Δ(SAE − cheap) = P3 − P1 = **−0.227** (legacy headline −0.228).
+- TSFM Δ(SAE − cheap) = P3 − P1 = **−0.228** (reproduces the legacy headline exactly).
 - Selective: LLM raw **41.3%** of oracle, TSFM P1 **30.5%** of oracle.
 
 ## 2. Causal sample size + single- vs all-position patching  ✅ CLOSED (the gold replication)
@@ -83,8 +83,8 @@ at both widths in both modalities; every Δ(SAE−raw) CI is strictly < 0:
 |---|---|---|
 | LLM SQuAD | 4× (native) | −0.079 [−0.118, −0.041] |
 | LLM SQuAD | **8×** (sweep) | −0.058 [−0.097, −0.018] |
-| TSFM mid  | 8× (native) | −0.158 [−0.291, −0.025] |
-| TSFM mid  | **4×** (sweep) | −0.105 [−0.201, −0.009] |
+| TSFM mid  | 8× (native) | −0.158 [−0.293, −0.025] |
+| TSFM mid  | **4×** (sweep) | −0.100 [−0.199, −0.001] |
 
 This directly answers the "maybe a bigger SAE would've found signal" objection:
 the *larger* LLM SAE (8×) still fails to beat raw activations. Full numbers in
@@ -111,12 +111,12 @@ quantile (`df_meta['crps_norm'].quantile(0.75)`), letting test-set values leak
 into the threshold.
 
 `label_threshold_split` in the TSFM config selects where the threshold is computed:
-- `all` (default) reproduces the legacy number exactly (Δ(SAE−cheap) = −0.227),
+- `all` (default) reproduces the legacy number exactly (Δ(SAE−cheap) = −0.228),
   so the Phase-2 regression gate passes and the refactor is verified correct.
 - `train` uses a train-only quantile — the honest leakage fix matching the
   LLM-side discipline (train-only SAE fit, prompt-only perplexity, purge gap).
 
-Impact of switching to train-only: P1 0.654→0.694, Δ(SAE−cheap) −0.227→−0.171 —
+Impact of switching to train-only: P1 0.654→0.694, Δ(SAE−cheap) −0.228→−0.171 —
 the predictive-null conclusion is unchanged, so the fix is safe to adopt for the
 paper while citing the legacy number as the regression anchor.
 
