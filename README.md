@@ -45,18 +45,28 @@ report the same metrics**. So the code is split into:
 - **`configs/`** — one YAML per (modality × experiment).
 
 ```
-core/
-  sae.py          TopK SAE (aux dead-feature revival; expansion & k configurable)
-  probe.py        three-rung (+2 diagnostic) ladder, paired-bootstrap ΔAUROC
-  calibration.py  ECE/Brier + Platt/isotonic 5-fold OOF recalibration
-  selective.py    risk-coverage curves, AURC, oracle, "% of oracle captured"
-  cascade.py      cheap↔expensive routing, Pareto frontier
-  patching.py     reconstruction-patch ablation: single- AND all-position
-  stats.py        ProbeResult, paired bootstrap, label-permutation test
+core/                modality-agnostic, numpy/sklearn/torch-SAE, no model code
+  sae.py             TopK SAE (aux dead-feature revival; expansion & k configurable)
+  probe.py           three-rung (+2 diagnostic) ladder, paired-bootstrap ΔAUROC
+  calibration.py     ECE/Brier + Platt/isotonic 5-fold OOF recalibration
+  selective.py       risk-coverage curves, AURC, oracle, "% of oracle captured"
+  cascade.py         cheap↔expensive routing, Pareto frontier
+  patching.py        reconstruction-patch ablation: single- AND all-position
+  stats.py           ProbeResult, paired bootstrap, label-permutation test
+  _repro.py          single-thread BLAS pin for bit-reproducibility
 modalities/
-  base.py         the Modality Protocol every backend satisfies
-  llm.py          Pythia-410M/2.8B + HellaSwag / SQuAD
-  tsfm.py         Chronos-T5 small/base + ETTh1 forecast windows
+  base.py            the Modality Protocol every backend satisfies
+  llm.py             Pythia-410M/2.8B + HellaSwag / SQuAD
+  tsfm.py            Chronos-T5 small/base + ETTh1 forecast windows
+experiments/
+  run.py             config-driven entrypoint (--modality / --experiment)
+  causal_llm.py      Pythia causal ablation (all vs boundary position)
+  causal_tsfm.py     Chronos causal ablation (all vs last; CRN variance reduction)
+  train_sae.py       SAE trainer (for the expansion-robustness sweep)
+  synthesize.py      builds the cross-modal money table
+configs/             one YAML per (modality × experiment)
+paper/               main.tex (6pp, builds) + references.bib + submission_materials.md
+results/             json + parquet + PNG per experiment, + cross_modal_synthesis.md
 ```
 
 ## The probe ladder (the apples-to-apples comparator)
@@ -109,15 +119,12 @@ starts from cached activations — see `configs/README.md` for staging.)
 
 ## Reproduced results (real runs, in `results/`)
 
-The unified pipeline reproduces the legacy headline numbers of **both** modalities
-exactly through the shared code (the default TSFM config uses the legacy
-whole-dataset label threshold; a train-only threshold is an opt-in leakage fix
-that leaves the conclusion unchanged — see `SEAMS.md` §6). The cross-modal
-synthesis lives in `results/cross_modal_synthesis.md`:
-
-All three runs reproduce the legacy headline numbers through the shared code
-(the Phase-2 regression gate): LLM SQuAD/L18 raw = **0.716**; TSFM Δ(SAE−cheap)
-= **−0.228** (reproducing the legacy headline exactly); selective **41%** (LLM) / **30%** (TSFM).
+Through the shared code, **both** modalities reproduce their legacy headline
+numbers exactly (the Phase-2 regression gate): LLM SQuAD/L18 raw-only AUROC =
+**0.716**; TSFM Δ(SAE−cheap) = **−0.228**; selective **41%** (LLM) / **30%** (TSFM).
+(The default TSFM config uses the legacy whole-dataset label threshold; a
+train-only threshold is an opt-in leakage fix that leaves the conclusion unchanged
+— `SEAMS.md` §6.) Full table in `results/cross_modal_synthesis.md`:
 
 | | HellaSwag | SQuAD (mid) | ETTh1 |
 |---|---|---|---|
@@ -150,35 +157,37 @@ That divergence (universal predictive null, LLM-specific causal contribution) is
 the paper's contribution, not a problem — see `SEAMS.md` §2.
 
 ```bash
-# reproduce everything (after staging data/ — see configs/README.md)
-bash reproduce.sh
 # causal coverage replication (needs the live models, cached locally):
 USE_TF=0 python experiments/causal_tsfm.py --config configs/tsfm_etth1.yaml --positions all
 USE_TF=0 python experiments/causal_tsfm.py --config configs/tsfm_etth1.yaml --positions last
 python experiments/synthesize.py
 ```
 
-## Status / roadmap
+The TSFM causal ablation defaults to **Common Random Numbers** (shared MC draws
+across natural/recon/ablate per window) so the per-feature ΔCRPS isolates the
+intervention from sampling noise; `--no_crn` reverts to the noisier legacy
+estimator. The conclusion is invariant (0/5 either way); CRN just tightens the
+null.
+
+## Status / roadmap — all phases complete
 
 - [x] **Phase 0** repo architecture (this layout)
 - [x] **Phase 1** shared core extracted + unit-tested on synthetic arrays
-- [x] **Phase 2** adapters wired against real extraction outputs; legacy LLM
-      numbers reproduce exactly through the unified ladder
+- [x] **Phase 2** adapters wired against real extraction outputs; **both** modalities'
+      legacy headline numbers reproduce exactly (regression gate: LLM 0.716, TSFM −0.228)
 - [x] **Phase 3** seams closed — see `SEAMS.md`:
-      (a) identical three-rung ladder in both modalities at **both** layers (TSFM
-      P2 middle rung promoted to headline; mid + late);
-      (b) single- AND all-position causal results on Chronos via `core.patching`
-      (the coverage experiment — which produced the LLM-vs-TSFM divergence);
-      (c) **expansion-robustness sweep run** (LLM 4×↔8×, TSFM 8×↔4×): null holds
-      at both widths — `results/expansion_robustness.md`.
-      Plus: train-only-threshold leakage fix (opt-in) and natural-scale selective
-      error, unifying leakage controls across modalities.
+      (a) identical three-rung ladder in both modalities at **both** layers;
+      (b) single- AND all-position causal on Chronos via `core.patching` (→ the divergence);
+      (c) **expansion-robustness sweep** (LLM 4×↔8×, TSFM 8×↔4×): null holds at both widths.
+      Plus a train-only-threshold leakage fix (opt-in) and natural-scale selective error.
 - [x] **Phase 4** unified runner (`--modality`/`--experiment`, incl. `causal` &
-      `calibrate`), uniform json+parquet+PNG artifacts, guardrails (SAE/label
-      refusal, MPS threading), and an unattended `reproduce.sh` that regenerates
-      the full results table
-- [ ] **Phase 5/6** cross-modal paper from `paper/outline.md` + `results/cross_modal_synthesis.md`
-      (synthesis table auto-generated by `experiments/synthesize.py`)
+      `calibrate`), uniform json+parquet+PNG artifacts, guardrails, bit-reproducible,
+      and an unattended `reproduce.sh` that regenerates the full table
+- [x] **Phase 5** cross-modal synthesis table (`results/cross_modal_synthesis.md`,
+      auto-generated) — all axes populated incl. label-permutation p and cascade points
+- [x] **Phase 6** manuscript: `paper/main.tex` (6pp, builds with `tectonic`) +
+      `references.bib` + ready-to-paste `paper/submission_materials.md`
 
-See `SEAMS.md` for the seam-by-seam reconciliation and `paper/outline.md` for the
-manuscript skeleton.
+Docs: `SEAMS.md` (seam-by-seam reconciliation), `results/expansion_robustness.md`
+(width sweep), `paper/outline.md` (manuscript skeleton). The only remaining work is
+human-side: fill the `[GROUP]/[TOPIC]` slots in `submission_materials.md` and pick a venue.
