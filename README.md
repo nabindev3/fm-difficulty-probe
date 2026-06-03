@@ -31,6 +31,51 @@ This is the roadmap's "either outcome is publishable" case: a *universal
 predictive null + a modality-specific causal positive* is a sharper, more
 falsifiable claim than a forced two-way replication.
 
+## Pipeline at a glance
+
+Two unrelated foundation models enter through thin adapters, run the *identical*
+shared core, and meet in one cross-modal synthesis table.
+
+```mermaid
+flowchart TB
+    LLM["LLM modality<br/>Pythia-410M / 2.8B<br/>HellaSwag · SQuAD"]
+    TSFM["TSFM modality<br/>Chronos-T5 small / base<br/>ETTh1 forecast windows"]
+
+    LLM -->|"llm.py adapter"| API
+    TSFM -->|"tsfm.py adapter"| API
+
+    API["Modality interface · modalities/base.py<br/>cheap features · raw activations · SAE codes<br/>labels · splits · CV · causal metric · cascade models"]
+
+    API --> F["TopK SAE → three feature blocks:<br/>① cheap baseline  ② raw activations  ③ SAE codes"]
+
+    subgraph CORE["Shared core — modality-agnostic, one implementation (core/)"]
+      direction LR
+      Q1["Q1 · Predictive<br/>5-rung probe ladder<br/>P1 cheap → P2 +raw → P3 +SAE<br/>bootstrap ΔAUROC + perm test"]
+      Q2["Q2 · Causal<br/>reconstruction patching<br/>single vs all-position<br/>Δnats / ΔCRPS"]
+      Q3["Q3 · Deployable<br/>risk-coverage + AURC<br/>Platt / isotonic recalib"]
+      Q4["Q4 · Cascade<br/>cheap↔expensive routing<br/>Pareto frontier"]
+    end
+
+    F --> Q1 & Q2 & Q3 & Q4
+    Q1 & Q2 & Q3 & Q4 --> SYN["Cross-modal synthesis · synthesize.py<br/>the money table → results/cross_modal_synthesis.md"]
+
+    SYN --> R1["✅ Predictive null — BOTH<br/>SAE adds nothing over raw"]
+    SYN --> R2["⚠️ Causal signal — LM ONLY<br/>LLM 5/5 · TSFM 0/5 — the divergence"]
+    SYN --> R3["✅ Deployable predictor — BOTH<br/>30–41% of oracle AURC"]
+    SYN --> PAPER["📄 paper/main.tex · 6 pp"]
+
+    classDef good fill:#e6f4ea,stroke:#34a853,color:#000;
+    classDef warn fill:#fef7e0,stroke:#f9ab00,color:#000;
+    classDef core fill:#e8f0fe,stroke:#4285f4,color:#000;
+    class R1,R3 good;
+    class R2 warn;
+    class Q1,Q2,Q3,Q4 core;
+```
+
+The whole project rests on the **CORE** box being literally one implementation:
+the cross-modal claim is apples-to-apples *by construction*, because Pythia and
+Chronos run the same code through their adapters.
+
 ## Why this layout
 
 The project lives or dies on whether **both modalities run the same pipeline and
