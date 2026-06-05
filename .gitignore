@@ -16,6 +16,11 @@ __pycache__/
 venv/
 .pytest_cache/
 
+# Editable-install / build artifacts
+*.egg-info/
+build/
+dist/
+
 # OS
 .DS_Store
 

@@ -112,6 +112,9 @@ experiments/
 configs/             one YAML per (modality × experiment)
 paper/               main.tex (6pp, builds) + references.bib + submission_materials.md
 results/             json + parquet + PNG per experiment, + cross_modal_synthesis.md
+pyproject.toml       installable package (`pip install -e .`) + pytest pythonpath
+requirements.lock    exact pins of the env that produced the committed CIs
+tests/               model-free core tests (synthetic ladder + causal patching)
 ```
 
 ## The probe ladder (the apples-to-apples comparator)
@@ -135,8 +138,14 @@ middle rung only as a diagnostic; routing it through `core.probe` promotes it).
 ## Quickstart
 
 ```bash
-pip install -r requirements.txt
+# Editable install — puts core/ modalities/ experiments/ on the import path,
+# so there are no sys.path hacks anywhere (see pyproject.toml).
+pip install -r requirements.txt && pip install -e .
+# For bit-reproducible runs that regenerate the committed CIs, install the exact
+# pins instead:  pip install -r requirements.lock && pip install -e . --no-deps
+
 pytest tests/ -q                 # model-free; proves the core is modality-agnostic
+                                 # (works from a clean checkout via pyproject pythonpath)
 
 # Roadmap interface: pick a backend + analysis stage.
 python experiments/run.py --modality llm  --dataset squad --experiment all
@@ -154,8 +163,10 @@ FAST=1 bash reproduce.sh                # probe table only (skip heavy causal)
 Every experiment writes a uniform artifact pair — `<name>.json` (full detail) +
 `<name>.parquet` (flat table) — plus PNG figures (risk-coverage, Pareto, reliability)
 under `results/<experiment>/`. Runs are **bit-reproducible**: probes seed
-liblinear (`random_state`) and the entrypoints pin BLAS to a single thread
-(`core/_repro.py`), so a fresh `run.py` reproduces the committed CIs exactly (set
+liblinear (`random_state`), the entrypoints pin BLAS to a single thread
+(`core/_repro.py`), and `requirements.lock` pins the numerics-critical packages
+(numpy / scipy / scikit-learn / torch) to the versions that produced the
+committed CIs — so a fresh `run.py` reproduces them exactly (set
 `OMP_NUM_THREADS=8` to trade exact bits for speed). Guardrails: the runner refuses
 a missing / non-TopKSAE / random-init checkpoint and single-class labels, and sets
 the threading backend + MPS device for Apple Silicon. (Activation *extraction* and its
