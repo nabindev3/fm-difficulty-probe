@@ -30,8 +30,6 @@ import json
 import os
 import sys
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
 import core._repro  # noqa: F401  — pins single-thread BLAS before numpy import
 
 import numpy as np
@@ -70,7 +68,7 @@ def _check_sae(cfg: dict, layer: str):
     if not os.path.exists(path):
         sys.exit(f"[guardrail] SAE checkpoint not found: {path}. Train it first; "
                  f"refusing to probe with random weights.")
-    state = torch.load(path, map_location="cpu")
+    state = torch.load(path, map_location="cpu", weights_only=True)
     if "W_enc" not in state:
         sys.exit(f"[guardrail] {path} is not a TopKSAE checkpoint (no W_enc).")
 
@@ -247,23 +245,47 @@ def stage_calibrate(m, cfg, out_dir):
     return out
 
 
-def stage_causal(m, cfg, args, out_dir):
-    """Dispatch to the modality-specific causal driver (both position modes)."""
+def stage_causal(cfg):
+    """Run the modality-specific causal driver IN-PROCESS for both position modes.
+
+    Imports the driver and calls run_causal() directly, so an exception inside the
+    ablation propagates and aborts the stage. The previous version shelled out with
+    subprocess.run(check=False), which swallowed crashes — a failed causal run then
+    looked like success and left stale/missing result JSON behind.
+
+    Torch-only backends are pinned here (some envs ship a broken TensorFlow that
+    transformers' lazy import would otherwise pull in); set before transformers is
+    imported anywhere in this process.
+    """
+    os.environ.setdefault("USE_TF", "0")
+    os.environ.setdefault("USE_FLAX", "0")
     modality = cfg["modality"]
-    import subprocess
-    here = os.path.dirname(os.path.abspath(__file__))
-    script = {"tsfm": "causal_tsfm.py", "llm": "causal_llm.py"}[modality]
-    script_path = os.path.join(here, script)
-    if not os.path.exists(script_path):
-        print(f"[causal] {script} not present; skipping (LLM causal results may be "
-              f"reused from legacy — see reproduce.sh).")
-        return
-    cfg_path = args.config or _resolve_config(args)
-    env = dict(os.environ, USE_TF="0", USE_FLAX="0")
-    for positions in ("all", "last" if modality == "tsfm" else "boundary"):
-        cmd = [sys.executable, script_path, "--config", cfg_path, "--positions", positions]
-        print(f"[causal] {' '.join(cmd)}")
-        subprocess.run(cmd, env=env, check=False)
+    cc = cfg.get("causal", {}) or {}
+    layer = cfg.get("layer", "mid")
+    seed = cfg.get("seed", 42)
+
+    if modality == "tsfm":
+        from experiments import causal_tsfm
+        for positions in ("all", "last"):
+            print(f"[causal] tsfm positions={positions}")
+            causal_tsfm.run_causal(
+                cfg, positions=positions,
+                k_features=cc.get("k_features", 5),
+                hard_quantile=cc.get("hard_quantile", 0.85),
+                num_samples=cc.get("num_samples", 20),
+                prediction_length=cc.get("prediction_length", 64),
+                max_windows=cc.get("max_windows"),
+                layer=layer, seed=seed)
+    elif modality == "llm":
+        from experiments import causal_llm
+        for positions in ("all", "boundary"):
+            print(f"[causal] llm positions={positions}")
+            causal_llm.run_causal(
+                cfg, positions=positions, layer=layer,
+                k_features=cc.get("k_features", 5),
+                max_samples=cc.get("max_samples"), seed=seed)
+    else:
+        raise ValueError(f"no causal driver for modality {modality!r}")
 
 
 # --------------------------------------------------------------------------- #
@@ -373,9 +395,10 @@ def main():
     _setup_threads()
     exp = args.experiment
 
-    # Causal is dispatched before building the adapter (it spawns its own process).
+    # Causal runs in-process before building the probe adapter (it loads the live
+    # model itself). Exceptions propagate — a crashed ablation aborts the stage.
     if exp == "causal":
-        stage_causal(None, cfg, args, out_dir)
+        stage_causal(cfg)
         return
 
     m = build_modality(cfg)

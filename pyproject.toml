@@ -1,0 +1,48 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "fm-difficulty-probe"
+version = "0.1.0"
+description = "Modality-agnostic label-free difficulty probing across an LM (Pythia) and a TSFM (Chronos-T5)."
+readme = "README.md"
+requires-python = ">=3.10"
+
+# Install-time floors (broad enough to install). For BIT-REPRODUCIBLE runs that
+# regenerate the committed CIs, install the exact pins instead:
+#     pip install -r requirements.lock && pip install -e . --no-deps
+# The numerics-critical packages (numpy / scipy / scikit-learn / joblib /
+# threadpoolctl / torch) determine the AUROC-bootstrap and liblinear bit pattern,
+# so the lock is what the regression gate is calibrated against.
+dependencies = [
+    "torch>=2.4.0",
+    "transformers>=4.40.0",      # LLM modality (Pythia)
+    "chronos-forecasting>=1.2.0", # TSFM modality (Chronos-T5)
+    "datasets>=2.19.0",
+    "safetensors>=0.4.0",
+    "scikit-learn>=1.4.0",
+    "pandas>=2.0.0",
+    "numpy>=1.24.0",
+    "scipy>=1.11.0",
+    "statsmodels>=0.14.0",       # ADF p-value + autocorrelation for TS cheap stats
+    "matplotlib>=3.8.0",
+    "pyarrow>=14.0.0",
+    "tqdm>=4.66.0",
+    "PyYAML>=6.0",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0"]
+
+# The three top-level packages. Installing the project (`pip install -e .`) puts
+# the repo root on the import path, so `import core` / `import modalities` /
+# `from experiments import causal_tsfm` resolve everywhere — no sys.path hacks.
+[tool.setuptools]
+packages = ["core", "modalities", "experiments"]
+
+[tool.pytest.ini_options]
+# Adds the repo root to sys.path during test collection, so `pytest` works from a
+# clean checkout WITHOUT requiring `pip install -e .` first.
+pythonpath = ["."]
+testpaths = ["tests"]

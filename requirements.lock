@@ -1,0 +1,44 @@
+# Exact-pin lock — the environment that produced the committed results/ CIs.
+# Captured 2026-06-04 on Python 3.10.20 (CPython, macOS/Apple-Silicon, MPS).
+#
+#   pip install -r requirements.lock
+#   pip install -e . --no-deps          # add the package without re-resolving deps
+#
+# Why a lock and not just requirements.txt's floors: the AUROC paired bootstrap
+# and the L1-liblinear probe are bit-sensitive to numpy/scipy/scikit-learn (and
+# the BLAS pinned by core/_repro.py). A floating `pip install` six months from now
+# can resolve a newer scikit-learn whose liblinear changes the CI tails by ~1e-3
+# and silently trips the Phase-2 regression gate. These exact pins prevent that.
+#
+# Direct dependencies + the transitive packages that affect numerics
+# (numpy / scipy / joblib / threadpoolctl). Other transitive deps are left to the
+# resolver — they don't touch the numbers.
+
+python_version == "3.10.20"
+
+# --- numerics-critical (govern the bit pattern of the reported CIs) --- #
+numpy==2.2.6
+scipy==1.15.1
+scikit-learn==1.7.2
+joblib==1.4.2
+threadpoolctl==3.6.0
+
+# --- modality backends --- #
+torch==2.11.0
+transformers==4.57.6
+chronos-forecasting==2.2.2
+datasets==4.8.4
+safetensors==0.7.0
+
+# --- data / stats / io --- #
+pandas==2.2.3
+statsmodels==0.14.6
+pyarrow==23.0.1
+PyYAML==6.0.3
+
+# --- plotting / progress --- #
+matplotlib==3.10.0
+tqdm==4.67.3
+
+# --- test --- #
+pytest==9.0.3

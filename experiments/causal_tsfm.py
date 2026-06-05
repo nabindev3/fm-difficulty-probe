@@ -11,6 +11,9 @@ Pipeline (reuses core.patching for everything modality-agnostic):
   3. for positions in {all, last}: measure CRPS under natural / sae_recon /
      ablate(feature) per window; aggregate with paired-bootstrap Δ.
 
+Use either the in-process API (`run_causal`, called by experiments/run.py) or the
+CLI:
+
     python experiments/causal_tsfm.py --config configs/tsfm_etth1.yaml \
         --positions all  --max_windows 80
     python experiments/causal_tsfm.py --config configs/tsfm_etth1.yaml \
@@ -21,9 +24,6 @@ from __future__ import annotations
 import argparse
 import json
 import os
-import sys
-
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import core._repro  # noqa: F401  — pins single-thread BLAS before numpy
 
@@ -50,35 +50,40 @@ def compute_crps(samples, truth):
     return float(np.mean(crps_vals))
 
 
-def main():
-    ap = argparse.ArgumentParser()
-    ap.add_argument("--config", required=True)
-    ap.add_argument("--positions", choices=["all", "last"], default="all")
-    ap.add_argument("--k_features", type=int, default=5)
-    ap.add_argument("--hard_quantile", type=float, default=0.85)
-    ap.add_argument("--num_samples", type=int, default=50)
-    ap.add_argument("--prediction_length", type=int, default=96)
-    ap.add_argument("--max_windows", type=int, default=None)
-    ap.add_argument("--layer", default="mid")
-    ap.add_argument("--seed", type=int, default=42)
-    ap.add_argument("--no_crn", action="store_true",
-                    help="Disable Common Random Numbers (independent MC draws per "
-                         "condition; matches the legacy noisier estimator).")
-    args = ap.parse_args()
-    np.random.seed(args.seed)
-    torch.manual_seed(args.seed)
+def run_causal(
+    cfg: dict,
+    positions: str = "all",
+    k_features: int = 5,
+    hard_quantile: float = 0.85,
+    num_samples: int = 20,
+    prediction_length: int = 64,
+    max_windows: int | None = None,
+    layer: str = "mid",
+    seed: int = 42,
+    no_crn: bool = False,
+) -> dict:
+    """Run the Chronos reconstruction-patching ablation for one position mode.
 
-    with open(args.config) as f:
-        cfg = yaml.safe_load(f)
+    Returns the aggregated summary dict (also written to <out_dir>/causal_ablation_
+    <positions>.json/.parquet). Raises on any failure — callers get real error
+    propagation instead of a silent non-zero exit. `cfg["causal"]` may carry
+    num_samples / prediction_length / k_features / hard_quantile to override the
+    defaults below (the committed results used num_samples=20, prediction_length=64).
+    """
+    if positions not in ("all", "last"):
+        raise ValueError(f"positions must be 'all' or 'last', got {positions!r}")
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+
     out_dir = cfg.get("out_dir", "results/tsfm_etth1")
     os.makedirs(out_dir, exist_ok=True)
     ctx_len = cfg.get("context_length", 512)
 
     # --- SAE + activations for feature ranking ----------------------------- #
-    state = torch.load(cfg["sae_ckpt"][args.layer], map_location="cpu")
+    state = torch.load(cfg["sae_ckpt"][layer], map_location="cpu", weights_only=True)
     sae = TopKSAE.from_checkpoint(state, k=cfg.get("k", 32))
 
-    acts = load_file(cfg["activations"][args.layer])["encoder_embeddings"].numpy()
+    acts = load_file(cfg["activations"][layer])["encoder_embeddings"].numpy()
     meta = pd.read_parquet(cfg["metadata"])
 
     # max-pool codes per window -> (N, d_hidden) for feature ranking.
@@ -92,10 +97,10 @@ def main():
 
     col = "crps_norm" if "crps_norm" in meta.columns else "crps_raw"
     tr = (meta["split"] == "train").values
-    thr = np.quantile(meta.loc[tr, col].values, args.hard_quantile)  # train-only threshold
+    thr = np.quantile(meta.loc[tr, col].values, hard_quantile)  # train-only threshold
     y = (meta[col].values >= thr).astype(int)
-    top, _ = rank_top_features(pooled, y, tr, k_features=args.k_features, C=0.3)
-    print(f"[{args.positions}] top-{args.k_features} features: {top}")
+    top, _ = rank_top_features(pooled, y, tr, k_features=k_features, C=0.3)
+    print(f"[{positions}] top-{k_features} features: {top}")
 
     # --- Chronos model ------------------------------------------------------ #
     from chronos import ChronosPipeline
@@ -104,18 +109,18 @@ def main():
     model_name = cfg.get("causal_model", "amazon/chronos-t5-small")
     pipeline = ChronosPipeline.from_pretrained(model_name, device_map=device, dtype=dtype)
     n_layers = pipeline.model.model.config.num_layers
-    layer_idx = cfg.get("layer_modules", {"mid": n_layers // 2}).get(args.layer, n_layers // 2)
+    layer_idx = cfg.get("layer_modules", {"mid": n_layers // 2}).get(layer, n_layers // 2)
     hook_module = pipeline.model.model.encoder.block[layer_idx].layer[-1]
-    print(f"Hooking encoder.block[{layer_idx}].layer[-1] (num_layers={n_layers}), positions={args.positions}")
+    print(f"Hooking encoder.block[{layer_idx}].layer[-1] (num_layers={n_layers}), positions={positions}")
 
     series = pd.read_csv(cfg["series_csv"])[cfg.get("target_col", "OT")].values.astype(np.float64)
     test = meta[meta["split"] == "test"].copy().reset_index(drop=True)
-    if args.max_windows:
-        test = test.iloc[:args.max_windows].copy()
+    if max_windows:
+        test = test.iloc[:max_windows].copy()
     print(f"Running ablation on {len(test)} test windows.")
 
-    recon_hook = make_recon_hook(sae, ablated_features=None, positions=args.positions)
-    feat_hooks = {f: make_recon_hook(sae, ablated_features=[f], positions=args.positions)
+    recon_hook = make_recon_hook(sae, ablated_features=None, positions=positions)
+    feat_hooks = {f: make_recon_hook(sae, ablated_features=[f], positions=positions)
                   for f in top}
 
     def predict_crps(hook_fn, context, truth, mc_seed=None):
@@ -123,14 +128,14 @@ def main():
         # a window draw the SAME Monte-Carlo trajectories, so the per-feature
         # ΔCRPS isolates the intervention effect instead of being swamped by
         # sampling noise. This either tightens the null or fairly reveals a small
-        # effect; it does not bias the point estimate. Disable with --no_crn.
+        # effect; it does not bias the point estimate. Disable with no_crn=True.
         if mc_seed is not None:
             torch.manual_seed(mc_seed)
         h = hook_module.register_forward_hook(hook_fn) if hook_fn else None
         try:
             with torch.no_grad():
-                fc = pipeline.predict(context, prediction_length=args.prediction_length,
-                                      num_samples=args.num_samples)
+                fc = pipeline.predict(context, prediction_length=prediction_length,
+                                      num_samples=num_samples)
         finally:
             if h:
                 h.remove()
@@ -141,9 +146,9 @@ def main():
     for wi, (_, row) in enumerate(tqdm(list(test.iterrows()), total=len(test))):
         s = int(row["start_ts"])
         context = torch.tensor(series[s:s + ctx_len], dtype=torch.float32)
-        truth = series[s + ctx_len:s + ctx_len + args.prediction_length]
+        truth = series[s + ctx_len:s + ctx_len + prediction_length]
         # One MC seed per window, shared across recon + all ablations (CRN).
-        w_seed = None if args.no_crn else (args.seed * 100003 + wi)
+        w_seed = None if no_crn else (seed * 100003 + wi)
         # Re-forecast the natural (no-hook) condition under the SAME CRN seed, so
         # Δ(recon−natural) is paired too (the metadata crps_raw used independent draws).
         out = {"window_id": int(row["window_id"]),
@@ -158,14 +163,14 @@ def main():
         natural=df["crps_natural"].values,
         sae_recon=df["crps_sae_recon"].values,
         per_feature={f: df[f"crps_ablate_{f}"].values for f in top},
-        seed=args.seed,
+        seed=seed,
     )
     summary["metric"] = "CRPS"
-    summary["positions"] = args.positions
+    summary["positions"] = positions
     summary["top_features"] = top
     summary["model"] = model_name
 
-    tag = f"causal_ablation_{args.positions}"
+    tag = f"causal_ablation_{positions}"
     df.to_parquet(os.path.join(out_dir, f"{tag}.parquet"))
     with open(os.path.join(out_dir, f"{tag}.json"), "w") as fh:
         json.dump(summary, fh, indent=2)
@@ -177,8 +182,35 @@ def main():
         sig = " *" if d["significant"] else ""
         n_sig += d["significant"]
         print(f"  feat {f:5d}: Δ(ablate−recon) {d['point']:+.4f}  CI {d['ci95']}{sig}")
-    print(f"[{args.positions}] {n_sig}/{len(top)} features significant. "
+    print(f"[{positions}] {n_sig}/{len(top)} features significant. "
           f"Saved {out_dir}/{tag}.json")
+    return summary
+
+
+def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--config", required=True)
+    ap.add_argument("--positions", choices=["all", "last"], default="all")
+    ap.add_argument("--k_features", type=int, default=5)
+    ap.add_argument("--hard_quantile", type=float, default=0.85)
+    ap.add_argument("--num_samples", type=int, default=20)
+    ap.add_argument("--prediction_length", type=int, default=64)
+    ap.add_argument("--max_windows", type=int, default=None)
+    ap.add_argument("--layer", default="mid")
+    ap.add_argument("--seed", type=int, default=42)
+    ap.add_argument("--no_crn", action="store_true",
+                    help="Disable Common Random Numbers (independent MC draws per "
+                         "condition; matches the legacy noisier estimator).")
+    args = ap.parse_args()
+
+    with open(args.config) as f:
+        cfg = yaml.safe_load(f)
+    run_causal(
+        cfg, positions=args.positions, k_features=args.k_features,
+        hard_quantile=args.hard_quantile, num_samples=args.num_samples,
+        prediction_length=args.prediction_length, max_windows=args.max_windows,
+        layer=args.layer, seed=args.seed, no_crn=args.no_crn,
+    )
 
 
 if __name__ == "__main__":

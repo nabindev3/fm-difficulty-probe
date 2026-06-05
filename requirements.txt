@@ -1,5 +1,7 @@
-# Shared interpreter lock for BOTH modalities (Phase 0 "done when": one env).
-# Pin before submission; ranges here are the union of the two legacy repos.
+# Install-time FLOORS for both modalities (Phase 0 "done when": one env).
+# For bit-reproducible runs that regenerate the committed CIs, use the exact pins
+# in requirements.lock instead (see its header). pyproject.toml carries the same
+# floors and makes the repo `pip install -e .`-able.
 torch>=2.4.0
 transformers>=4.40.0      # LLM modality (Pythia)
 chronos-forecasting       # TSFM modality (Chronos-T5)

@@ -42,3 +42,14 @@ out_dir: results/tsfm_etth1
 
 # Live model for the causal ablation
 causal_model: amazon/chronos-t5-small
+
+# Causal-ablation params (drive experiments/causal_tsfm.run_causal). These are the
+# settings that produced the committed results/tsfm_etth1/causal_ablation_*.json:
+# 20 MC samples × 64-step horizon (legacy-sanctioned for RELATIVE ΔCRPS; faster
+# than 50×96 with the same conclusion).
+causal:
+  k_features: 5
+  hard_quantile: 0.85
+  num_samples: 20
+  prediction_length: 64
+  max_windows: null      # null = all 167 test windows

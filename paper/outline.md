@@ -59,7 +59,7 @@ and pinpoints where the signal lives.
 |------|-------|------------------|
 | Baseline mismatch | TSFM headline was SAE-vs-classical-stats; raw-activation **middle rung** was only a diagnostic | both modalities now route through `core.probe.run_probe_ladder` → identical 5-rung ladder; report Δ(P3−P2) on both |
 | Causal sample size | TSFM ablation thin (167 windows × top-5; ΔCRPS CI straddles 0) | raise to LLM standard; `core.patching` parametrizes feature count + bootstrap |
-| Single vs all-position | LLM found coverage-not-fidelity (all-position reveals effects single-position misses) | `core.patching.make_recon_hook(positions=...)` ports the knob to TSFM → **second cross-modal replication** if it holds |
+| Single vs all-position | LLM found coverage-not-fidelity (all-position reveals effects single-position misses) | `core.patching.make_recon_hook(positions=...)` ports the knob to TSFM → tested both modes on 167 windows; **the causal signal does NOT replicate** (TSFM 0/5 under both), so the coverage finding is LLM-specific |
 | SAE expansion | 8× (LLM) vs 4× (TSFM, 512→4096) | `TopKSAE(expansion=...)`; align or show robustness to expansion |
 | Layer choice | residual 12/18 vs encoder 3/5 | frame as "mid + late"; `layers()` exposes both |
 | Causal metric | Δnats vs ΔCRPS | appropriately modality-specific; frame as parallel, recorded in summary |
@@ -74,8 +74,9 @@ P2 cheap+raw AUROC        | 0.472                | 0.671 (0.708 @L18)  | 0.584
 P3 cheap+SAE AUROC        | 0.500                | 0.592               | 0.426
 Δ(P3−P2) AUROC [95% CI]   | +0.028[-0.001,+0.058]| -0.079[-0.118,-0.041]| -0.158[-0.291,-0.025]
 Δ(P3−P1) AUROC [95% CI]   | -0.009[-0.039,+0.020]| +0.002[-0.044,+0.047]| -0.227[-0.365,-0.091]
-causal sig (all-position) | 5/5                  | 5/5                 | (running)
-causal sig (single-pos)   | 0/5                  | 2/5                 | (running)
+causal sig (all-position) | 5/5                  | 5/5                 | 0/5
+causal sig (single-pos)   | 0/5                  | 2/5                 | 0/5
+causal ΔCRPS (all, n=167) | —                    | —                   | -0.023[-0.076,+0.033]
 selective: % oracle AURC  | 2.0% (P1)            | 41.3% (raw)         | 30.5% (P1)
 cascade: Pareto-dom pts   | 1 (P1)               | 31 (SAE), 24 (P1)   | 5 (P1), 1 (SAE)
 ```
@@ -90,6 +91,11 @@ Notes:
   train-only threshold (leakage fix, `label_threshold_split: train`) leaves the
   conclusion unchanged (Δ(SAE−cheap) −0.227→−0.171). See SEAMS.md §6.
 - Selective uses each modality's natural error scale (binary / CRPS); see §7.
-- The causal coverage contrast (all 5/5 vs single 0–2/5) is the cross-modal
-  replication; metric held continuous (Δnats / ΔCRPS) so coverage is not confounded
-  with the binary/continuous choice.
+- The causal half is a **dissociation, not a replication**: the LLM's features
+  are causally active under all-position patching (5/5) and under-detected by
+  single-position (0–2/5: coverage, not fidelity), but on Chronos NO feature is
+  significant under either coverage (0/5, ΔCRPS −0.023 [−0.076,+0.033]),
+  reproducing the legacy 50-sample Chronos null. Metric held continuous
+  (Δnats / ΔCRPS) so this is not a binary-vs-continuous artifact. The causal
+  signal is therefore a property of the autoregressive LM, not a universal SAE
+  phenomenon — that dissociation is itself the contribution.

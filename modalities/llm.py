@@ -120,7 +120,7 @@ class LLMModality:
     def _load_sae(self, layer: str):
         import torch
         from core.sae import TopKSAE
-        state = torch.load(self.cfg["sae_ckpt"][layer], map_location="cpu")
+        state = torch.load(self.cfg["sae_ckpt"][layer], map_location="cpu", weights_only=True)
         return TopKSAE.from_checkpoint(state, k=self.cfg.get("k", 32))
 
     # --- Modality interface ------------------------------------------------- #

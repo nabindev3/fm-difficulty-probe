@@ -4,14 +4,9 @@ Run with:  pytest tests/ -q
 These tests don't assert research conclusions — they assert the shared core is
 modality-agnostic (numpy in, results out) and internally consistent.
 """
-import os
-import sys
-
 import numpy as np
 import pytest
 from sklearn.model_selection import StratifiedKFold
-
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from core import probe as P
 from core import selective as S
