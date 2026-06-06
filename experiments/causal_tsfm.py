@@ -23,6 +23,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import logging
 import os
 
 import core._repro  # noqa: F401  — pins single-thread BLAS before numpy
@@ -36,6 +37,9 @@ from tqdm import tqdm
 
 from core.sae import TopKSAE
 from core.patching import rank_top_features, make_recon_hook, aggregate_ablation
+from core._log import setup_logging, add_logging_args
+
+log = logging.getLogger(__name__)
 
 
 def compute_crps(samples, truth):
@@ -100,7 +104,7 @@ def run_causal(
     thr = np.quantile(meta.loc[tr, col].values, hard_quantile)  # train-only threshold
     y = (meta[col].values >= thr).astype(int)
     top, _ = rank_top_features(pooled, y, tr, k_features=k_features, C=0.3)
-    print(f"[{positions}] top-{k_features} features: {top}")
+    log.info("[%s] top-%d features: %s", positions, k_features, top)
 
     # --- Chronos model ------------------------------------------------------ #
     from chronos import ChronosPipeline
@@ -111,13 +115,14 @@ def run_causal(
     n_layers = pipeline.model.model.config.num_layers
     layer_idx = cfg.get("layer_modules", {"mid": n_layers // 2}).get(layer, n_layers // 2)
     hook_module = pipeline.model.model.encoder.block[layer_idx].layer[-1]
-    print(f"Hooking encoder.block[{layer_idx}].layer[-1] (num_layers={n_layers}), positions={positions}")
+    log.info("hooking encoder.block[%d].layer[-1] (num_layers=%d), positions=%s",
+             layer_idx, n_layers, positions)
 
     series = pd.read_csv(cfg["series_csv"])[cfg.get("target_col", "OT")].values.astype(np.float64)
     test = meta[meta["split"] == "test"].copy().reset_index(drop=True)
     if max_windows:
         test = test.iloc[:max_windows].copy()
-    print(f"Running ablation on {len(test)} test windows.")
+    log.info("running ablation on %d test windows.", len(test))
 
     recon_hook = make_recon_hook(sae, ablated_features=None, positions=positions)
     feat_hooks = {f: make_recon_hook(sae, ablated_features=[f], positions=positions)
@@ -175,15 +180,15 @@ def run_causal(
     with open(os.path.join(out_dir, f"{tag}.json"), "w") as fh:
         json.dump(summary, fh, indent=2)
 
-    print(f"\nΔ(sae_recon − natural) = {summary['delta_sae_recon']['point']:+.4f} "
-          f"CI {summary['delta_sae_recon']['ci95']}")
+    log.info("Δ(sae_recon − natural) = %+.4f CI %s",
+             summary["delta_sae_recon"]["point"], summary["delta_sae_recon"]["ci95"])
     n_sig = 0
     for f, d in summary["per_feature_ablation_delta"].items():
         sig = " *" if d["significant"] else ""
         n_sig += d["significant"]
-        print(f"  feat {f:5d}: Δ(ablate−recon) {d['point']:+.4f}  CI {d['ci95']}{sig}")
-    print(f"[{positions}] {n_sig}/{len(top)} features significant. "
-          f"Saved {out_dir}/{tag}.json")
+        log.info("  feat %5d: Δ(ablate−recon) %+.4f  CI %s%s", f, d["point"], d["ci95"], sig)
+    log.info("[%s] %d/%d features significant. Saved %s/%s.json",
+             positions, n_sig, len(top), out_dir, tag)
     return summary
 
 
@@ -201,7 +206,9 @@ def main():
     ap.add_argument("--no_crn", action="store_true",
                     help="Disable Common Random Numbers (independent MC draws per "
                          "condition; matches the legacy noisier estimator).")
+    add_logging_args(ap)
     args = ap.parse_args()
+    setup_logging(args.verbose, args.quiet)
 
     with open(args.config) as f:
         cfg = yaml.safe_load(f)

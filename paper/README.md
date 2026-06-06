@@ -8,8 +8,12 @@ twice; a reader who skips both Results sections still gets the contribution from
 the Intro + Table 1 (synthesis).
 
 - `main.tex` — the manuscript (6 pp.).
+- `main.pdf` — the rendered paper. **Intentionally committed** (the deliverable;
+  readers without a LaTeX toolchain get the paper directly). Regenerate with the
+  build below; LaTeX intermediates (`*.aux`, `*.log`, …) are gitignored.
 - `references.bib` — bibliography.
 - `outline.md` — the planning outline + the synthesis schema it was built from.
+- `LICENSE` — CC BY 4.0 (this manuscript only; the software is MIT, see `../LICENSE`).
 
 Every number in `main.tex` Table 1 comes from `../results/cross_modal_synthesis.md`
 (regenerate with `experiments/synthesize.py`).

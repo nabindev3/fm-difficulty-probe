@@ -15,9 +15,13 @@ from __future__ import annotations
 
 import argparse
 import json
+import logging
 import os
 
 import core._repro  # noqa: F401  — pins single-thread BLAS before numpy
+from core._log import setup_logging, add_logging_args
+
+log = logging.getLogger(__name__)
 
 
 def _load(path):
@@ -168,7 +172,9 @@ def main():
                     default=["llm_hellaswag", "llm_squad", "tsfm_etth1"])
     ap.add_argument("--results_dir", default="results")
     ap.add_argument("--out", default="results/cross_modal_synthesis.md")
+    add_logging_args(ap)
     args = ap.parse_args()
+    setup_logging(args.verbose, args.quiet)
 
     rows = [row_for(r, args.results_dir) for r in args.runs]
     md = render_markdown(rows)
@@ -176,8 +182,8 @@ def main():
         f.write(md)
     with open(args.out.replace(".md", ".json"), "w") as f:
         json.dump(rows, f, indent=2)
-    print(md)
-    print(f"\nSaved {args.out}")
+    print(md)                       # the synthesis table is the report -> stdout
+    log.info("saved %s", args.out)
 
 
 if __name__ == "__main__":

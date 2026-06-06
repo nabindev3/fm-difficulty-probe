@@ -247,3 +247,23 @@ null.
 Docs: `SEAMS.md` (seam-by-seam reconciliation), `results/expansion_robustness.md`
 (width sweep), `paper/outline.md` (manuscript skeleton). The only remaining work is
 human-side: fill the `[GROUP]/[TOPIC]` slots in `submission_materials.md` and pick a venue.
+
+## License
+
+Dual-licensed, by artifact type:
+
+- **Software** (`core/`, `modalities/`, `experiments/`, `tests/`, configs, build
+  files) — MIT, see [`LICENSE`](LICENSE).
+- **Manuscript** (`paper/`) — Creative Commons Attribution 4.0 (CC BY 4.0), see
+  [`paper/LICENSE`](paper/LICENSE).
+
+The rendered `paper/main.pdf` **is intentionally committed** (it is the headline
+deliverable, ~68 KB, and a reader without a LaTeX toolchain should still get the
+paper). This is deliberate and distinct from `results/`, which is gitignored
+because it is large and fully regenerable from the code. To rebuild the PDF:
+`cd paper && tectonic main.tex`.
+
+## Citation
+
+See [`CITATION.cff`](CITATION.cff) (GitHub renders a "Cite this repository"
+button). Please cite both the software and the manuscript.

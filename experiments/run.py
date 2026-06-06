@@ -28,10 +28,14 @@ from __future__ import annotations
 import argparse
 import glob
 import json
+import logging
 import os
 import sys
 
 import core._repro  # noqa: F401  — pins single-thread BLAS before numpy import
+from core._log import setup_logging, add_logging_args
+
+log = logging.getLogger(__name__)
 
 import numpy as np
 import pandas as pd
@@ -121,7 +125,7 @@ def _setup_threads():
         pass
     dev = "cuda" if torch.cuda.is_available() else (
         "mps" if torch.backends.mps.is_available() else "cpu")
-    print(f"[device] {dev}; torch threads={torch.get_num_threads()}")
+    log.info("device=%s; torch threads=%d", dev, torch.get_num_threads())
     return dev
 
 
@@ -132,14 +136,14 @@ def _dump_json(obj, out_dir, fname):
     os.makedirs(out_dir, exist_ok=True)
     with open(os.path.join(out_dir, fname), "w") as f:
         json.dump(obj, f, indent=2)
-    print(f"Saved {os.path.join(out_dir, fname)}")
+    log.info("saved %s", os.path.join(out_dir, fname))
 
 
 def _dump_parquet(df: pd.DataFrame, out_dir, fname):
     os.makedirs(out_dir, exist_ok=True)
     path = os.path.join(out_dir, fname)
     df.to_parquet(path)
-    print(f"Saved {path}")
+    log.info("saved %s", path)
 
 
 def _test_ids(m, test_mask):
@@ -209,11 +213,11 @@ def stage_selective(m, cfg, out_dir, preds=None):
     _dump_parquet(pd.DataFrame(rows), out_dir, "selective_prediction.parquet")
     _plot_risk_coverage(summary, out_dir, title=cfg.get("experiment", ""))
 
-    print(f"\n[selective] oracle AURC={summary['oracle_aurc']:.4f}  "
-          f"random AURC={summary['random_aurc']:.4f}")
+    log.info("[selective] oracle AURC=%.4f  random AURC=%.4f",
+             summary["oracle_aurc"], summary["random_aurc"])
     for name, r in summary["probes"].items():
-        print(f"  {name:14s} AURC={r['aurc']:.4f}  "
-              f"captures {100*r['fraction_of_oracle_aurc']:.1f}% of oracle")
+        log.info("  %-14s AURC=%.4f  captures %.1f%% of oracle",
+                 name, r["aurc"], 100 * r["fraction_of_oracle_aurc"])
     return summary
 
 
@@ -234,7 +238,7 @@ def stage_cascade(m, cfg, out_dir, preds=None):
     _dump_parquet(pd.DataFrame(rows), out_dir, "cascade_results.parquet")
     _plot_pareto(summary, out_dir, cost_cheap, cost_exp)
     for name, r in summary["probes"].items():
-        print(f"[cascade] {name}: {r['n_dominating_points']} Pareto-dominating points")
+        log.info("[cascade] %s: %d Pareto-dominating points", name, r["n_dominating_points"])
     return summary
 
 
@@ -270,8 +274,8 @@ def stage_calibrate(m, cfg, out_dir):
     _dump_parquet(pd.DataFrame(rows), out_dir, "recalibration_results.parquet")
     _plot_reliability(fig_pts, out_dir)
     for rung, d in out.items():
-        print(f"[calibrate] {rung}: raw ECE {d['raw']['ece']:.3f} -> "
-              f"Platt {d['platt']['ece']:.3f} / isotonic {d['isotonic']['ece']:.3f}")
+        log.info("[calibrate] %s: raw ECE %.3f -> Platt %.3f / isotonic %.3f",
+                 rung, d["raw"]["ece"], d["platt"]["ece"], d["isotonic"]["ece"])
     return out
 
 
@@ -297,7 +301,7 @@ def stage_causal(cfg):
     if modality == "tsfm":
         from experiments import causal_tsfm
         for positions in ("all", "last"):
-            print(f"[causal] tsfm positions={positions}")
+            log.info("[causal] tsfm positions=%s", positions)
             causal_tsfm.run_causal(
                 cfg, positions=positions,
                 k_features=cc.get("k_features", 5),
@@ -309,7 +313,7 @@ def stage_causal(cfg):
     elif modality == "llm":
         from experiments import causal_llm
         for positions in ("all", "boundary"):
-            print(f"[causal] llm positions={positions}")
+            log.info("[causal] llm positions=%s", positions)
             causal_llm.run_causal(
                 cfg, positions=positions, layer=layer,
                 k_features=cc.get("k_features", 5),
@@ -332,7 +336,7 @@ def _plot_risk_coverage(summary, out_dir, title=""):
     ax.set_xlabel("coverage"); ax.set_ylabel("risk on retained (lower better)")
     ax.set_title(f"Risk-coverage {title}"); ax.legend(fontsize=8); ax.grid(alpha=0.3)
     fig.tight_layout(); fig.savefig(os.path.join(out_dir, "risk_coverage.png"), dpi=150)
-    plt.close(fig); print(f"Saved {os.path.join(out_dir, 'risk_coverage.png')}")
+    plt.close(fig); log.info("saved %s", os.path.join(out_dir, "risk_coverage.png"))
 
 
 def _plot_pareto(summary, out_dir, cost_cheap, cost_exp):
@@ -350,7 +354,7 @@ def _plot_pareto(summary, out_dir, cost_cheap, cost_exp):
     ax.set_xlabel("mean cost"); ax.set_ylabel("mean error (lower better)")
     ax.set_title("Cost–quality cascade"); ax.legend(fontsize=8); ax.grid(alpha=0.3)
     fig.tight_layout(); fig.savefig(os.path.join(out_dir, "pareto_frontier.png"), dpi=150)
-    plt.close(fig); print(f"Saved {os.path.join(out_dir, 'pareto_frontier.png')}")
+    plt.close(fig); log.info("saved %s", os.path.join(out_dir, "pareto_frontier.png"))
 
 
 def _plot_reliability(fig_pts, out_dir):
@@ -362,18 +366,19 @@ def _plot_reliability(fig_pts, out_dir):
         ax.set_title(rung); ax.set_xlabel("predicted P(hard)"); ax.set_ylabel("actual")
         ax.set_xlim(0, 1); ax.set_ylim(0, 1); ax.legend(fontsize=8); ax.grid(alpha=0.3)
     fig.tight_layout(); fig.savefig(os.path.join(out_dir, "reliability.png"), dpi=150)
-    plt.close(fig); print(f"Saved {os.path.join(out_dir, 'reliability.png')}")
+    plt.close(fig); log.info("saved %s", os.path.join(out_dir, "reliability.png"))
 
 
 def _print_ladder(result):
-    print(f"\n=== Probe ladder  (n_test={result.n_test}, "
-          f"hard_frac={result.hard_fraction:.3f}) ===")
+    log.info("=== Probe ladder  (n_test=%d, hard_frac=%.3f) ===",
+             result.n_test, result.hard_fraction)
     for name, pr in result.probes.items():
-        print(f"  {name:14s} AUROC={pr.auroc:.3f}  "
-              f"95% CI [{pr.ci_low:.3f}, {pr.ci_high:.3f}]  (C={pr.best_C})")
-    print("  --- incremental power (paired bootstrap) ---")
+        log.info("  %-14s AUROC=%.3f  95%% CI [%.3f, %.3f]  (C=%s)",
+                 name, pr.auroc, pr.ci_low, pr.ci_high, pr.best_C)
+    log.info("  --- incremental power (paired bootstrap) ---")
     for key, d in result.deltas.items():
-        print(f"  Δ {key:24s} {d['point']:+.3f}  95% CI [{d['ci_low']:+.3f}, {d['ci_high']:+.3f}]")
+        log.info("  Δ %-24s %+.3f  95%% CI [%+.3f, %+.3f]",
+                 key, d["point"], d["ci_low"], d["ci_high"])
 
 
 # --------------------------------------------------------------------------- #
@@ -411,7 +416,9 @@ def main():
     ap.add_argument("--layer", default=None, choices=["mid", "late"])
     ap.add_argument("--sae_override", default=None, help="Use this TopKSAE checkpoint (expansion sweep).")
     ap.add_argument("--tag", default=None, help="Suffix for out_dir.")
+    add_logging_args(ap)
     args = ap.parse_args()
+    setup_logging(args.verbose, args.quiet)
 
     args.config = _resolve_config(args)
     with open(args.config) as f:
@@ -446,8 +453,8 @@ def main():
     if exp in ("calibrate", "all"):
         stage_calibrate(m, cfg, out_dir)
     if exp == "all":
-        print("\n[note] causal ablation runs separately: "
-              "`run.py --modality <m> --experiment causal` (needs the live model).")
+        log.info("[note] causal ablation runs separately: "
+                 "`run.py --modality <m> --experiment causal` (needs the live model).")
 
 
 if __name__ == "__main__":

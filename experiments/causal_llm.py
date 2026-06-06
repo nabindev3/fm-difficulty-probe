@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import logging
 import os
 
 import core._repro  # noqa: F401  — pins single-thread BLAS before numpy
@@ -30,7 +31,10 @@ from tqdm import tqdm
 
 from core.sae import TopKSAE
 from core.patching import rank_top_features, make_recon_hook, aggregate_ablation
+from core._log import setup_logging, add_logging_args
 from modalities.llm import aggregate_sequence  # noqa: F401  (kept for parity / external callers)
+
+log = logging.getLogger(__name__)
 
 
 def run_causal(
@@ -73,7 +77,7 @@ def run_causal(
         codes = sae(raw.reshape(-1, d_model).float())[0].reshape(N, S, d_hidden).numpy()
     pooled = codes.max(axis=1)  # (N, d_hidden)
     top, _ = rank_top_features(pooled, y, tr, k_features=k_features, C=0.1)
-    print(f"[{positions}] top-{k_features} features: {top}")
+    log.info("[%s] top-%d features: %s", positions, k_features, top)
 
     device = "cuda" if torch.cuda.is_available() else ("mps" if torch.backends.mps.is_available() else "cpu")
     sae = sae.to(device)
@@ -101,7 +105,7 @@ def run_causal(
     test = meta[meta["split"] == "test"].copy().reset_index(drop=True)
     if max_samples:
         test = test.iloc[:max_samples].copy()
-    print(f"Running {dataset} causal ({positions}) on {len(test)} prompts.")
+    log.info("running %s causal (%s) on %d prompts.", dataset, positions, len(test))
 
     def metric_for(window_id):
         """Continuous difficulty metric for one item, evaluated under the active hook."""
@@ -149,7 +153,7 @@ def run_causal(
     with open(os.path.join(out_dir, f"{tag}.json"), "w") as fh:
         json.dump(summary, fh, indent=2)
     nsig = sum(v["significant"] for v in summary["per_feature_ablation_delta"].values())
-    print(f"[{positions}] {nsig}/{len(top)} significant. Saved {out_dir}/{tag}.json")
+    log.info("[%s] %d/%d significant. Saved %s/%s.json", positions, nsig, len(top), out_dir, tag)
     return summary
 
 
@@ -161,7 +165,9 @@ def main():
     ap.add_argument("--k_features", type=int, default=5)
     ap.add_argument("--max_samples", type=int, default=None, help="Cap test prompts.")
     ap.add_argument("--seed", type=int, default=42)
+    add_logging_args(ap)
     args = ap.parse_args()
+    setup_logging(args.verbose, args.quiet)
 
     with open(args.config) as f:
         cfg = yaml.safe_load(f)

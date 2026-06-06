@@ -17,6 +17,7 @@ dead-feature revival, decoder renorm, lr warmup).
 from __future__ import annotations
 
 import argparse
+import logging
 import os
 
 import core._repro  # noqa: F401  — pins single-thread BLAS before numpy
@@ -29,6 +30,9 @@ from torch.utils.data import DataLoader, TensorDataset
 from tqdm import tqdm
 
 from core.sae import TopKSAE
+from core._log import setup_logging, add_logging_args
+
+log = logging.getLogger(__name__)
 
 
 def load_train_tokens(activations_path, metadata_path, split_filter="train"):
@@ -64,14 +68,16 @@ def main():
     ap.add_argument("--dead_after_steps", type=int, default=50)
     ap.add_argument("--seed", type=int, default=42)
     ap.add_argument("--out", required=True, help="Output checkpoint path (.pt)")
+    add_logging_args(ap)
     args = ap.parse_args()
+    setup_logging(args.verbose, args.quiet)
     torch.manual_seed(args.seed)
 
     tokens, d_model = load_train_tokens(args.activations, args.metadata)
     if args.d_hidden is None:
         args.d_hidden = (args.expansion or 4) * d_model
-    print(f"train tokens={tuple(tokens.shape)}  d_model={d_model}  "
-          f"d_hidden={args.d_hidden} ({args.d_hidden // d_model}x)")
+    log.info("train tokens=%s  d_model=%d  d_hidden=%d (%dx)",
+             tuple(tokens.shape), d_model, args.d_hidden, args.d_hidden // d_model)
 
     device = "cuda" if torch.cuda.is_available() else ("mps" if torch.backends.mps.is_available() else "cpu")
     var = tokens.var(dim=0).mean().item()
@@ -104,11 +110,11 @@ def main():
             tot += F.mse_loss(recon, batch).item()
             pbar.set_postfix(nMSE=f"{(loss.item()/(var+1e-8)):.3f}",
                              dead=f"{dead.float().mean().item():.1%}")
-        print(f"epoch {epoch+1}: nMSE={tot/len(loader)/(var+1e-8):.3f}")
+        log.info("epoch %d: nMSE=%.3f", epoch + 1, tot / len(loader) / (var + 1e-8))
 
     os.makedirs(os.path.dirname(os.path.abspath(args.out)), exist_ok=True)
     torch.save(sae.state_dict(), args.out)
-    print(f"Saved {args.out}")
+    log.info("saved %s", args.out)
 
 
 if __name__ == "__main__":

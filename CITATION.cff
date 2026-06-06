@@ -1,0 +1,37 @@
+cff-version: 1.2.0
+message: "If you use this software or its results, please cite both the software and the manuscript below."
+title: "fm-difficulty-probe: label-free difficulty probing across foundation-model modalities"
+abstract: >-
+  A modality-agnostic pipeline that probes whether TopK sparse-autoencoder
+  features encode a self-difficulty signal beyond cheap baselines, replicated
+  across an autoregressive language model (Pythia) and an encoder-based
+  time-series foundation model (Chronos-T5). Provides a shared probe ladder,
+  reconstruction-patching causal ablation, selective prediction, and a
+  cost-quality cascade.
+type: software
+version: 0.1.0
+date-released: "2026-06-05"
+license:
+  - MIT
+  - CC-BY-4.0
+authors:
+  - given-names: "Nabin Prasad"
+    family-names: "Dev"
+    email: "nabin.dev33@gmail.com"
+repository-code: "https://github.com/nabindev3/fm-difficulty-probe"
+url: "https://github.com/nabindev3/fm-difficulty-probe"
+keywords:
+  - sparse autoencoders
+  - mechanistic interpretability
+  - foundation models
+  - selective prediction
+  - time-series forecasting
+  - large language models
+preferred-citation:
+  type: article
+  title: "SAE Features Are Causally Active but Predictively Redundant for Difficulty: Evidence Across Language and Time-Series Foundation Models"
+  year: 2026
+  notes: "Manuscript; see paper/main.pdf."
+  authors:
+    - given-names: "Nabin Prasad"
+      family-names: "Dev"
