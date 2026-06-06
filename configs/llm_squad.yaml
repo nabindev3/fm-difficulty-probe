@@ -1,6 +1,7 @@
 # LLM modality — Pythia-410M on SQuAD (continuous generative gold-target perplexity).
 modality: llm
 experiment: squad
+default: true        # default dataset for `--modality llm` (vs hellaswag)
 seed: 42
 n_boot: 2000
 k: 32

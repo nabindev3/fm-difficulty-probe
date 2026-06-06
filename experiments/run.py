@@ -26,6 +26,7 @@ Guardrails kept from both legacy repos:
 from __future__ import annotations
 
 import argparse
+import glob
 import json
 import os
 import sys
@@ -48,13 +49,42 @@ from core import cascade as cascade_core
 MODALITIES = {"llm": ("modalities.llm", "LLMModality"),
               "tsfm": ("modalities.tsfm", "TSFMModality")}
 
-# (modality, dataset) -> config path. --dataset defaults per modality.
-CONFIG_REGISTRY = {
-    ("llm", "hellaswag"): "configs/llm_hellaswag.yaml",
-    ("llm", "squad"): "configs/llm_squad.yaml",
-    ("tsfm", "etth1"): "configs/tsfm_etth1.yaml",
-}
-DEFAULT_DATASET = {"llm": "squad", "tsfm": "etth1"}
+_CONFIGS_DIR = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "configs")
+
+
+def _discover_configs(configs_dir: str = _CONFIGS_DIR):
+    """Build the (modality, dataset) -> path map by reading configs/*.yaml.
+
+    Each config self-declares `modality:` and `experiment:` (the dataset), so
+    adding a (modality × experiment) is just dropping a YAML in configs/ — no edit
+    here. A config may set `default: true` to be its modality's default dataset;
+    a modality with a single config defaults to it automatically.
+    """
+    registry: dict[tuple[str, str], str] = {}
+    defaults: dict[str, str] = {}
+    counts: dict[str, int] = {}
+    for path in sorted(glob.glob(os.path.join(configs_dir, "*.yaml"))):
+        try:
+            with open(path) as f:
+                c = yaml.safe_load(f) or {}
+        except yaml.YAMLError:
+            continue
+        mod, ds = c.get("modality"), c.get("experiment")
+        if not mod or not ds:
+            continue  # not a runnable (modality × experiment) config
+        registry[(mod, ds)] = path
+        counts[mod] = counts.get(mod, 0) + 1
+        if c.get("default"):
+            defaults[mod] = ds
+    # A modality with exactly one config defaults to it without needing a flag.
+    for (mod, ds) in registry:
+        if counts[mod] == 1:
+            defaults.setdefault(mod, ds)
+    return registry, defaults
+
+
+CONFIG_REGISTRY, DEFAULT_DATASET = _discover_configs()
 
 
 # --------------------------------------------------------------------------- #
@@ -354,7 +384,11 @@ def _resolve_config(args) -> str:
         return args.config
     if not args.modality:
         sys.exit("Provide either --config or --modality.")
-    ds = args.dataset or DEFAULT_DATASET[args.modality]
+    ds = args.dataset or DEFAULT_DATASET.get(args.modality)
+    if ds is None:
+        avail = sorted(d for (m, d) in CONFIG_REGISTRY if m == args.modality)
+        sys.exit(f"--modality {args.modality} has multiple configs and no default; "
+                 f"pass --dataset (one of {avail}) or mark one config `default: true`.")
     key = (args.modality, ds)
     if key not in CONFIG_REGISTRY:
         sys.exit(f"No config for {key}. Known: {sorted(CONFIG_REGISTRY)}")

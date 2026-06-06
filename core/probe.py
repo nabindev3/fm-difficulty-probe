@@ -29,6 +29,7 @@ import warnings
 from typing import Iterable
 
 import numpy as np
+from joblib import parallel_backend
 from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import GridSearchCV
 from sklearn.preprocessing import StandardScaler
@@ -120,7 +121,6 @@ def run_probe_ladder(
         # threading (irrelevant here), so we scope-suppress that one message.
         gs = GridSearchCV(base, {"C": c_grid}, scoring="roc_auc",
                           cv=list(cv_splits), n_jobs=-1)
-        from joblib import parallel_backend
         with warnings.catch_warnings(), parallel_backend("threading"):
             warnings.filterwarnings("ignore", message=".*n_jobs.*liblinear.*")
             gs.fit(X_tr, y_train)
