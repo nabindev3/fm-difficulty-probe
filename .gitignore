@@ -21,6 +21,10 @@ venv/
 build/
 dist/
 
+# Editor / IDE state (not shared across machines)
+.vscode/
+.idea/
+
 # OS
 .DS_Store
 
