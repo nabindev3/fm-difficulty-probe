@@ -1,0 +1,19 @@
+# Weekly dependency monitoring. Security advisories in pip deps and stale
+# action versions arrive as PRs/alerts instead of going unnoticed.
+#
+# Note: requirements.lock is a frozen reproducibility snapshot (the paper's
+# CIs are calibrated against it), so Dependabot PRs against it are merged
+# deliberately — bump the pin, rerun reproduce.sh, and confirm the regression
+# gate before accepting.
+version: 2
+updates:
+  - package-ecosystem: pip
+    directory: "/"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly

@@ -16,6 +16,24 @@ env:
   PIP_EXTRA_INDEX_URL: https://download.pytorch.org/whl/cpu
 
 jobs:
+  # Known-CVE scan of the frozen lock. Non-blocking by design: the lock is a
+  # bit-reproducibility snapshot, so an advisory in a pinned version should
+  # surface as a loud annotation here (and a Dependabot alert), then be fixed
+  # by a deliberate pin bump + reproduce.sh rerun — not by an auto-red build.
+  audit:
+    name: pip-audit (requirements.lock)
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+      - run: pip install pip-audit
+      # --no-deps: audit exactly the pins in the lock (transitives are audited
+      # in the tests-lock job's resolved env by Dependabot alerts instead).
+      - run: pip-audit --strict -r requirements.lock --disable-pip --no-deps
+
   lint:
     name: ruff
     runs-on: ubuntu-latest
