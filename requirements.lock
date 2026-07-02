@@ -14,7 +14,9 @@
 # (numpy / scipy / joblib / threadpoolctl). Other transitive deps are left to the
 # resolver — they don't touch the numbers.
 
-python_version == "3.10.20"
+# Python itself is not pip-installable, so the interpreter pin lives in this
+# comment: CPython 3.10.20 (a bare `python_version == ...` line is not valid
+# requirements syntax and breaks `pip install -r`).
 
 # --- numerics-critical (govern the bit pattern of the reported CIs) --- #
 numpy==2.2.6

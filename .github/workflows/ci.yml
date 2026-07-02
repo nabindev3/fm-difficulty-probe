@@ -1,0 +1,63 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # CPU-only torch wheels: the tests are model-free and the CUDA wheel plus its
+  # nvidia-* dependencies (~6 GB installed) would dominate CI time and disk.
+  PIP_EXTRA_INDEX_URL: https://download.pytorch.org/whl/cpu
+
+jobs:
+  # Floors install (requirements.txt / pyproject ranges) — what a new user gets
+  # from a plain `pip install -e .` today. Catches breakage against the newest
+  # resolvable versions.
+  tests:
+    name: pytest (floors, py${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+          cache-dependency-path: pyproject.toml
+      - name: Install package (floor versions)
+        run: pip install -e ".[dev]"
+      - name: Run tests
+        run: pytest tests/ -q
+
+  # Exact-pin install from requirements.lock — the environment the committed
+  # CIs and the Phase-2 regression gate are calibrated against. Catches lock
+  # rot (a pin that stops resolving) and pin/test incompatibilities early.
+  # Note: the lock was captured on CPython 3.10.20 / macOS-arm64; this job uses
+  # the runner's latest 3.10.x on Linux, so it checks installability and test
+  # health, not bit-reproducibility of the CIs (that still needs the exact
+  # interpreter + BLAS documented in the lock header).
+  tests-lock:
+    name: pytest (requirements.lock, py3.10)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+          cache: pip
+          cache-dependency-path: requirements.lock
+      - name: Install exact pins
+        run: pip install -r requirements.lock
+      - name: Install package without re-resolving deps
+        run: pip install -e . --no-deps
+      - name: Run tests
+        run: pytest tests/ -q
