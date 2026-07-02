@@ -1,5 +1,10 @@
 # fm-difficulty-probe
 
+[![CI](https://github.com/nabindev3/fm-difficulty-probe/actions/workflows/ci.yml/badge.svg)](https://github.com/nabindev3/fm-difficulty-probe/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue.svg)](pyproject.toml)
+[![Cite](https://img.shields.io/badge/cite-CITATION.cff-green.svg)](CITATION.cff)
+
 A modality-agnostic study of whether **TopK sparse-autoencoder features encode a
 self-difficulty signal** in foundation models — replicated across an
 autoregressive LM (Pythia) and an encoder-based time-series FM (Chronos-T5).

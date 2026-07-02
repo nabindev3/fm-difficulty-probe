@@ -16,6 +16,17 @@ env:
   PIP_EXTRA_INDEX_URL: https://download.pytorch.org/whl/cpu
 
 jobs:
+  lint:
+    name: ruff
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install ruff
+      - run: ruff check core experiments modalities tests
+
   # Floors install (requirements.txt / pyproject ranges) — what a new user gets
   # from a plain `pip install -e .` today. Catches breakage against the newest
   # resolvable versions.

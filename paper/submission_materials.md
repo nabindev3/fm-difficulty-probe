@@ -77,3 +77,29 @@ version.)*
 - Delivered a deployable artifact — a Platt-recalibrated selective predictor
   capturing 30–41% of oracle AURC — plus a one-command-reproducible repo, unit
   tests on synthetic arrays, and a 6-page workshop manuscript.
+
+---
+
+## 5. Double-blind anonymization checklist
+
+If the target venue is double-blind, submit through an anonymized mirror (e.g.
+https://anonymous.4open.science — point it at the GitHub repo and give it the
+term list below; it rewrites the strings and hides the git history). Do NOT link
+the real repo in the submitted PDF.
+
+Identifying strings currently in tracked files (verified by grep, 2026-07-02):
+
+| file | what to scrub |
+|---|---|
+| `CITATION.cff` | author name + email; `repository-code`/`url` |
+| `LICENSE`, `paper/LICENSE` | copyright holder name |
+| `README.md` | badge URLs + links to `github.com/nabindev3/*` legacy repos |
+| `data/README.md` | legacy-repo clone URLs; HF dataset `nabindev3/llm-sae-difficulty-artifacts` |
+| `paper/main.tex` | `\author{}` block (lines ~20–22); code/data URLs (~lines 295, 305–306) |
+
+Term list for anonymous.4open.science: `Nabin Prasad Dev`, `nabin.dev33`,
+`nabindev3`. Rebuild `main.pdf` from the anonymized `main.tex` (the committed
+PDF embeds the author block) and check the PDF's metadata carries no author name.
+
+The de-anonymized artifacts (this repo, the HF dataset, the Zenodo DOI) go in
+the camera-ready only.

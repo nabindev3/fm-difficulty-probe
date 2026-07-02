@@ -5,7 +5,6 @@ These tests don't assert research conclusions — they assert the shared core is
 modality-agnostic (numpy in, results out) and internally consistent.
 """
 import numpy as np
-import pytest
 from sklearn.model_selection import StratifiedKFold
 
 from core import probe as P

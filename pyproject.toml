@@ -33,7 +33,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["pytest>=8.0"]
+dev = ["pytest>=8.0", "ruff>=0.6"]
 
 # The three top-level packages. Installing the project (`pip install -e .`) puts
 # the repo root on the import path, so `import core` / `import modalities` /
@@ -46,3 +46,13 @@ packages = ["core", "modalities", "experiments"]
 # clean checkout WITHOUT requiring `pip install -e .` first.
 pythonpath = ["."]
 testpaths = ["tests"]
+
+[tool.ruff.lint]
+# E702 (statements joined by semicolons) and E731 (lambda assignment) are house
+# style in the numeric code — compact setup lines read better beside the math.
+ignore = ["E702", "E731"]
+
+[tool.ruff.lint.per-file-ignores]
+# Deliberate late imports: core._repro must pin single-thread BLAS BEFORE numpy
+# loads, so numpy/pandas/matplotlib are imported after it on purpose.
+"experiments/run.py" = ["E402"]
