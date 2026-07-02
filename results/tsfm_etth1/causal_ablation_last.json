@@ -1,0 +1,64 @@
+{
+  "n": 167,
+  "mean_natural": 1.3228278835774727,
+  "mean_sae_recon": 1.3276985012814104,
+  "delta_sae_recon": {
+    "point": 0.004870617703937934,
+    "ci95": [
+      -0.008246914916177142,
+      0.01768353623753206
+    ]
+  },
+  "per_feature_ablation_delta": {
+    "1465": {
+      "point": 0.0,
+      "ci95": [
+        0.0,
+        0.0
+      ],
+      "significant": false
+    },
+    "2717": {
+      "point": 0.0,
+      "ci95": [
+        0.0,
+        0.0
+      ],
+      "significant": false
+    },
+    "1425": {
+      "point": 0.0,
+      "ci95": [
+        0.0,
+        0.0
+      ],
+      "significant": false
+    },
+    "3702": {
+      "point": 0.0,
+      "ci95": [
+        0.0,
+        0.0
+      ],
+      "significant": false
+    },
+    "3678": {
+      "point": 0.0,
+      "ci95": [
+        0.0,
+        0.0
+      ],
+      "significant": false
+    }
+  },
+  "metric": "CRPS",
+  "positions": "last",
+  "top_features": [
+    1465,
+    2717,
+    1425,
+    3702,
+    3678
+  ],
+  "model": "amazon/chronos-t5-small"
+}

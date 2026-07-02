@@ -1,0 +1,80 @@
+{
+  "n_total": 701,
+  "n_train": 483,
+  "n_test": 167,
+  "hard_fraction": 0.16167664670658682,
+  "probes": {
+    "P1_cheap": {
+      "name": "P1_cheap",
+      "auroc": 0.6537037037037037,
+      "ci_low": 0.5515623540128936,
+      "ci_high": 0.751300247371676,
+      "n_test": 167,
+      "best_C": 1.0,
+      "delta_vs_baseline": null,
+      "delta_ci": null,
+      "perm_p": null
+    },
+    "P2_cheap_raw": {
+      "name": "P2_cheap_raw",
+      "auroc": 0.5838624338624339,
+      "ci_low": 0.46051779159152245,
+      "ci_high": 0.697505182954511,
+      "n_test": 167,
+      "best_C": 0.1,
+      "delta_vs_baseline": null,
+      "delta_ci": null,
+      "perm_p": null
+    },
+    "P3_cheap_sae": {
+      "name": "P3_cheap_sae",
+      "auroc": 0.4841269841269841,
+      "ci_low": 0.37775650907845154,
+      "ci_high": 0.5871372970095596,
+      "n_test": 167,
+      "best_C": 0.1,
+      "delta_vs_baseline": null,
+      "delta_ci": null,
+      "perm_p": null
+    },
+    "P4_raw_only": {
+      "name": "P4_raw_only",
+      "auroc": 0.5835978835978836,
+      "ci_low": 0.45988178376373384,
+      "ci_high": 0.6973714718465559,
+      "n_test": 167,
+      "best_C": 0.1,
+      "delta_vs_baseline": null,
+      "delta_ci": null,
+      "perm_p": null
+    },
+    "P5_sae_only": {
+      "name": "P5_sae_only",
+      "auroc": 0.47698412698412695,
+      "ci_low": 0.373136574074074,
+      "ci_high": 0.5786968512250688,
+      "n_test": 167,
+      "best_C": 0.1,
+      "delta_vs_baseline": null,
+      "delta_ci": null,
+      "perm_p": null
+    }
+  },
+  "deltas": {
+    "P2_cheap_raw-P1_cheap": {
+      "point": -0.06984126984126982,
+      "ci_low": -0.1928637566137566,
+      "ci_high": 0.054727646454265096
+    },
+    "P3_cheap_sae-P1_cheap": {
+      "point": -0.1695767195767196,
+      "ci_low": -0.28538402820908376,
+      "ci_high": -0.050455041412488265
+    },
+    "P3_cheap_sae-P2_cheap_raw": {
+      "point": -0.09973544973544979,
+      "ci_low": -0.19853482850820586,
+      "ci_high": -0.0013033530019812944
+    }
+  }
+}

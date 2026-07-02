@@ -1,0 +1,80 @@
+{
+  "n_total": 5000,
+  "n_train": 3500,
+  "n_test": 1499,
+  "hard_fraction": 0.6210807204803203,
+  "probes": {
+    "P1_cheap": {
+      "name": "P1_cheap",
+      "auroc": 0.5093701305577828,
+      "ci_low": 0.4796293230990702,
+      "ci_high": 0.5386642784698216,
+      "n_test": 1499,
+      "best_C": 1.0,
+      "delta_vs_baseline": null,
+      "delta_ci": null,
+      "perm_p": null
+    },
+    "P2_cheap_raw": {
+      "name": "P2_cheap_raw",
+      "auroc": 0.4715511111783483,
+      "ci_low": 0.4416055204835254,
+      "ci_high": 0.5010350911197161,
+      "n_test": 1499,
+      "best_C": 0.3,
+      "delta_vs_baseline": null,
+      "delta_ci": null,
+      "perm_p": null
+    },
+    "P3_cheap_sae": {
+      "name": "P3_cheap_sae",
+      "auroc": 0.5,
+      "ci_low": 0.5,
+      "ci_high": 0.5,
+      "n_test": 1499,
+      "best_C": 0.01,
+      "delta_vs_baseline": null,
+      "delta_ci": null,
+      "perm_p": null
+    },
+    "P4_raw_only": {
+      "name": "P4_raw_only",
+      "auroc": 0.46546761773649414,
+      "ci_low": 0.4347988561714615,
+      "ci_high": 0.49606051634639386,
+      "n_test": 1499,
+      "best_C": 0.01,
+      "delta_vs_baseline": null,
+      "delta_ci": null,
+      "perm_p": null
+    },
+    "P5_sae_only": {
+      "name": "P5_sae_only",
+      "auroc": 0.5,
+      "ci_low": 0.5,
+      "ci_high": 0.5,
+      "n_test": 1499,
+      "best_C": 0.01,
+      "delta_vs_baseline": null,
+      "delta_ci": null,
+      "perm_p": null
+    }
+  },
+  "deltas": {
+    "P2_cheap_raw-P1_cheap": {
+      "point": -0.03781901937943449,
+      "ci_low": -0.0802031654165333,
+      "ci_high": 0.0030026275296984777
+    },
+    "P3_cheap_sae-P1_cheap": {
+      "point": -0.009370130557782796,
+      "ci_low": -0.0386642784698216,
+      "ci_high": 0.020370676900929818
+    },
+    "P3_cheap_sae-P2_cheap_raw": {
+      "point": 0.028448888821651697,
+      "ci_low": -0.0010350911197162024,
+      "ci_high": 0.05839447951647456
+    }
+  }
+}

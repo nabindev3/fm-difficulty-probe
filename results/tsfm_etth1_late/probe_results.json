@@ -1,0 +1,80 @@
+{
+  "n_total": 701,
+  "n_train": 483,
+  "n_test": 167,
+  "hard_fraction": 0.16167664670658682,
+  "probes": {
+    "P1_cheap": {
+      "name": "P1_cheap",
+      "auroc": 0.6537037037037037,
+      "ci_low": 0.5515623540128936,
+      "ci_high": 0.751300247371676,
+      "n_test": 167,
+      "best_C": 1.0,
+      "delta_vs_baseline": null,
+      "delta_ci": null,
+      "perm_p": null
+    },
+    "P2_cheap_raw": {
+      "name": "P2_cheap_raw",
+      "auroc": 0.4658730158730159,
+      "ci_low": 0.33411904022363725,
+      "ci_high": 0.5912101674857014,
+      "n_test": 167,
+      "best_C": 0.3,
+      "delta_vs_baseline": null,
+      "delta_ci": null,
+      "perm_p": null
+    },
+    "P3_cheap_sae": {
+      "name": "P3_cheap_sae",
+      "auroc": 0.5105820105820106,
+      "ci_low": 0.3799661098034386,
+      "ci_high": 0.6390097413263127,
+      "n_test": 167,
+      "best_C": 0.03,
+      "delta_vs_baseline": null,
+      "delta_ci": null,
+      "perm_p": null
+    },
+    "P4_raw_only": {
+      "name": "P4_raw_only",
+      "auroc": 0.44179894179894175,
+      "ci_low": 0.3167176573426574,
+      "ci_high": 0.564226045772351,
+      "n_test": 167,
+      "best_C": 1.0,
+      "delta_vs_baseline": null,
+      "delta_ci": null,
+      "perm_p": null
+    },
+    "P5_sae_only": {
+      "name": "P5_sae_only",
+      "auroc": 0.5105820105820106,
+      "ci_low": 0.3799661098034386,
+      "ci_high": 0.6390097413263127,
+      "n_test": 167,
+      "best_C": 0.03,
+      "delta_vs_baseline": null,
+      "delta_ci": null,
+      "perm_p": null
+    }
+  },
+  "deltas": {
+    "P2_cheap_raw-P1_cheap": {
+      "point": -0.1878306878306878,
+      "ci_low": -0.3166191520585591,
+      "ci_high": -0.05660395992479951
+    },
+    "P3_cheap_sae-P1_cheap": {
+      "point": -0.1431216931216931,
+      "ci_low": -0.2766181178539434,
+      "ci_high": -0.013421266821633873
+    },
+    "P3_cheap_sae-P2_cheap_raw": {
+      "point": 0.0447089947089947,
+      "ci_low": -0.10635005065856125,
+      "ci_high": 0.18061903538393773
+    }
+  }
+}

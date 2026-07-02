@@ -1,0 +1,125 @@
+[
+  {
+    "run": "llm_hellaswag",
+    "n_test": 1499,
+    "hard_frac": 0.621,
+    "P1": 0.509,
+    "P2_raw": 0.472,
+    "P3_sae": 0.5,
+    "delta_sae_over_raw": [
+      0.028,
+      -0.001,
+      0.058
+    ],
+    "delta_sae_over_cheap": [
+      -0.009,
+      -0.039,
+      0.02
+    ],
+    "selective_best": [
+      "P1_cheap",
+      2.0
+    ],
+    "cascade_dom_pts": {
+      "P3_cheap_sae": 0,
+      "P1_cheap": 1
+    },
+    "causal_all": [
+      5,
+      5,
+      0.2839629655682778
+    ],
+    "causal_last": [
+      0,
+      5,
+      0.004200436497943412
+    ],
+    "perm_p": {
+      "observed_delta": 0.028448888821651697,
+      "p_one_sided": 0.0326,
+      "p_two_sided": 0.0682
+    }
+  },
+  {
+    "run": "llm_squad",
+    "n_test": 1500,
+    "hard_frac": 0.177,
+    "P1": 0.59,
+    "P2_raw": 0.671,
+    "P3_sae": 0.592,
+    "delta_sae_over_raw": [
+      -0.079,
+      -0.118,
+      -0.041
+    ],
+    "delta_sae_over_cheap": [
+      0.002,
+      -0.044,
+      0.047
+    ],
+    "selective_best": [
+      "P4_raw_only",
+      41.3
+    ],
+    "cascade_dom_pts": {
+      "P3_cheap_sae": 31,
+      "P1_cheap": 24
+    },
+    "causal_all": [
+      5,
+      5,
+      0.49706428396701813
+    ],
+    "causal_last": [
+      2,
+      5,
+      0.024047871480385462
+    ],
+    "perm_p": {
+      "observed_delta": -0.07924897332472192,
+      "p_one_sided": 0.0,
+      "p_two_sided": 0.0
+    }
+  },
+  {
+    "run": "tsfm_etth1",
+    "n_test": 167,
+    "hard_frac": 0.162,
+    "P1": 0.654,
+    "P2_raw": 0.584,
+    "P3_sae": 0.426,
+    "delta_sae_over_raw": [
+      -0.158,
+      -0.293,
+      -0.025
+    ],
+    "delta_sae_over_cheap": [
+      -0.228,
+      -0.366,
+      -0.092
+    ],
+    "selective_best": [
+      "P1_cheap",
+      30.5
+    ],
+    "cascade_dom_pts": {
+      "P3_cheap_sae": 1,
+      "P1_cheap": 5
+    },
+    "causal_all": [
+      0,
+      5,
+      -0.028465541353708435
+    ],
+    "causal_last": [
+      0,
+      5,
+      0.004870617703937934
+    ],
+    "perm_p": {
+      "observed_delta": -0.15767195767195763,
+      "p_one_sided": 0.0105,
+      "p_two_sided": 0.0215
+    }
+  }
+]

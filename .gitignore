@@ -1,6 +1,15 @@
-# Data & artifacts (staged from legacy extraction; large, not version-controlled)
-data/
-results/
+# Data & artifacts (staged from legacy extraction; large, not version-controlled).
+# data/ keeps only its README; everything else there is symlinks/tensors.
+data/*
+!data/README.md
+
+# results/: the small JSON summaries and markdown tables ARE committed — they are
+# the reference the paper's numbers and the Phase-2 regression gate diff against.
+# Heavy per-item artifacts (parquet/npz/png) stay out.
+results/**
+!results/**/
+!results/**/*.json
+!results/**/*.md
 *.safetensors
 *.parquet
 *.pt
