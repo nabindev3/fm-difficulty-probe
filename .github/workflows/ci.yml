@@ -32,7 +32,23 @@ jobs:
       - run: pip install pip-audit
       # --no-deps: audit exactly the pins in the lock (transitives are audited
       # in the tests-lock job's resolved env by Dependabot alerts instead).
-      - run: pip-audit --strict -r requirements.lock --disable-pip --no-deps
+      #
+      # Ignored advisories (reviewed 2026-07-11) — all four require an
+      # attacker-supplied model, checkpoint or TorchScript program, and this
+      # repo only loads the pinned Pythia + Chronos weights from their org repos:
+      #   CVE-2025-3000   torch.jit.script memory corruption — no fixed release.
+      #   PYSEC-2025-217  X-CLIP checkpoint-conversion RCE — no fixed release.
+      #   CVE-2026-1839   Trainer torch.load RCE — fixed in transformers 5.x.
+      #   CVE-2026-4372   config-injection RCE — fixed in transformers 5.3.
+      # The transformers-5 pair drops out when the lock's modality backends are
+      # bumped (needs chronos-forecasting>=2.3.1, transformers>=5.3.0 and a
+      # reproduce.sh rerun to regenerate the committed CIs — see the lock header).
+      - run: >
+          pip-audit --strict -r requirements.lock --disable-pip --no-deps
+          --ignore-vuln CVE-2025-3000
+          --ignore-vuln PYSEC-2025-217
+          --ignore-vuln CVE-2026-1839
+          --ignore-vuln CVE-2026-4372
 
   lint:
     name: ruff
